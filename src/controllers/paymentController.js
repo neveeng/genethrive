@@ -59,24 +59,31 @@ const handleOrderCreate = async (req, res) => {
     }
 
     // Execute Transfer
-    const transfer = await stripe.transfers.create({
-      amount: SPLIT_CONFIG.nutripath.amount,
-      currency: 'usd', // Adjust currency as needed (e.g., 'aud')
-      destination: nutripathAccountId,
-      transfer_group: `ORDER_${order.id}`, // Link transfers to the order
-      metadata: {
-        shopify_order_id: order.id,
-        type: 'immediate_split'
+    try {
+      const transfer = await stripe.transfers.create({
+        amount: SPLIT_CONFIG.nutripath.amount,
+        currency: 'aud', 
+        destination: nutripathAccountId,
+        transfer_group: `ORDER_${order.id}`, 
+        metadata: {
+          shopify_order_id: order.id,
+          type: 'immediate_split'
+        }
+      });
+
+      // Log Success
+      await db.logTransfer(order.id, 'nutripath_initial', transfer.id, SPLIT_CONFIG.nutripath.amount, 'completed');
+      res.status(200).send('Order Processed - Nutripath Transfer Initiated');
+
+    } catch (stripeError) {
+      if (stripeError.code === 'balance_insufficient') {
+        console.warn(`[Order Create] Insufficient funds for Nutripath transfer (Order ${order.id}). Marking as pending_top_up.`);
+        await db.logTransfer(order.id, 'nutripath_initial', null, SPLIT_CONFIG.nutripath.amount, 'pending_top_up');
+        // TODO: Notify admin via Email/Slack
+        return res.status(200).send('Order Processed - Transfer Queued (Pending Top-up)');
       }
-    });
-
-    // 3. Log Success
-    await db.logTransfer(order.id, 'nutripath_initial', transfer.id, SPLIT_CONFIG.nutripath.amount);
-    
-    // 4. Create Anonymized Record (Placeholder)
-    // await createAnonymizedRecord(order);
-
-    res.status(200).send('Order Processed - Nutripath Transfer Initiated');
+      throw stripeError; // Re-throw other errors
+    }
 
   } catch (error) {
     console.error(`[Order Create] Error processing order ${req.body.id}:`, error);
@@ -137,7 +144,7 @@ const processMilestoneTransfer = async (order, roleKey, config) => {
     // 3. Execute Transfer
     const transfer = await stripe.transfers.create({
         amount: config.amount,
-        currency: 'usd',
+        currency: 'aud',
         destination: destinationId,
         transfer_group: `ORDER_${order.id}`,
         metadata: {
