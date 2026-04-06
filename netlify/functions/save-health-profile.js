@@ -33,6 +33,7 @@ const METAFIELD_DEFINITIONS = [
   { key: 'health_pregnant_breastfeeding', shopifyKey: 'pregnant_breastfeeding', type: 'single_line_text_field' },
   { key: 'health_conditions',             shopifyKey: 'conditions',             type: 'single_line_text_field' },
   { key: 'health_conditions_detail',      shopifyKey: 'conditions_detail',      type: 'multi_line_text_field'  },
+  { key: 'health_conditions2',            shopifyKey: 'conditions2',            type: 'single_line_text_field' },
   { key: 'health_medications',            shopifyKey: 'medications',            type: 'single_line_text_field' },
   { key: 'health_medications_detail',     shopifyKey: 'medications_detail',     type: 'multi_line_text_field'  },
   { key: 'health_allergies',              shopifyKey: 'allergies',              type: 'single_line_text_field' },
