@@ -17,12 +17,12 @@
  *   3. In your project root: netlify init
  *   4. Add environment variables in Netlify dashboard:
  *        Site → Environment variables → Add:
- *        SHOPIFY_STORE_DOMAIN   = your-store.myshopify.com
+ *        SHOPIFY_STORE_DOMAIN   = genethrive.myshopify.com
  *        SHOPIFY_ADMIN_TOKEN    = shpat_xxxxxxxxxxxxxxxxxxxx
- *        ALLOWED_ORIGIN         = https://your-store.myshopify.com
+ *        ALLOWED_ORIGIN         = https://genethrive.myshopify.com
  *   5. Deploy: netlify deploy --prod
  *   6. Your function URL will be:
- *        https://genethrive.netlify.app/.netlify/functions/save-health-profile
+ *        https://genethrive.netlify.app/netlify/functions/save-health-profile
  *      (update the URL in page.health-profile.liquid to match)
  * ─────────────────────────────────────────────────────────────────────────────
  */
