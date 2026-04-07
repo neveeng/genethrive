@@ -3,7 +3,11 @@ headers = []
 redirects = []
 
 [functions]
+  node_bundler = "esbuild"
 
+[functions."save-health-profile"]
+  node_version = "18"
+  
 [functions."*"]
 
 [build]

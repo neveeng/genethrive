@@ -46,6 +46,9 @@ const METAFIELD_DEFINITIONS = [
 
 exports.handler = async function (event) {
 
+  console.log('Node version:', process.version);
+  console.log('fetch available:', typeof fetch);
+
   // ── 1. CORS — only allow requests from your Shopify store ────────────────
   const allowedOrigin = process.env.ALLOWED_ORIGIN || '';
 
