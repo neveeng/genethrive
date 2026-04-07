@@ -62,7 +62,7 @@ const handleOrderCreate = async (req, res) => {
     try {
       const transfer = await stripe.transfers.create({
         amount: SPLIT_CONFIG.nutripath.amount,
-        currency: 'aud', 
+        currency: 'usd', 
         destination: nutripathAccountId,
         transfer_group: `ORDER_${order.id}`, 
         metadata: {
@@ -73,7 +73,13 @@ const handleOrderCreate = async (req, res) => {
 
       // Log Success
       await db.logTransfer(order.id, 'nutripath_initial', transfer.id, SPLIT_CONFIG.nutripath.amount, 'completed');
-      res.status(200).send('Order Processed - Nutripath Transfer Initiated');
+      
+      // 4. Create Anonymized Record (Core Principle)
+      const customerId = order.customer ? order.customer.id : `guest_${order.email}`;
+      const genethriveId = await db.getOrCreateAnonymizedId(customerId, order.id);
+      console.log(`[Order Create] Assigned GeneThrive ID: ${genethriveId} to order ${order.id}`);
+
+      res.status(200).send(`Order Processed - Nutripath Transfer Initiated - GeneThrive ID: ${genethriveId}`);
 
     } catch (stripeError) {
       if (stripeError.code === 'balance_insufficient') {
@@ -144,7 +150,7 @@ const processMilestoneTransfer = async (order, roleKey, config) => {
     // 3. Execute Transfer
     const transfer = await stripe.transfers.create({
         amount: config.amount,
-        currency: 'aud',
+        currency: 'usd',
         destination: destinationId,
         transfer_group: `ORDER_${order.id}`,
         metadata: {

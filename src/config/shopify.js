@@ -1,5 +1,6 @@
-const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
-require('dotenv').config();
+require('dotenv').config(); // 1. load env vars first
+require('@shopify/shopify-api/adapters/node');   // 2. shopify adapter
+const { shopifyApi, ApiVersion } = require('@shopify/shopify-api');
 
 // Ensure basic variables are set, though full validation should happen at runtime
 if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_API_SECRET) {
@@ -12,8 +13,13 @@ const shopify = shopifyApi({
   apiSecretKey: process.env.SHOPIFY_API_SECRET,
   scopes: ['read_orders', 'read_products'],
   hostName: process.env.SHOPIFY_SHOP_DOMAIN || 'localhost',
-  apiVersion: LATEST_API_VERSION,
+  apiVersion:ApiVersion.July25,
   isEmbeddedApp: false, 
+  future: {
+    customerAddressDefaultFix: true,        // fixes 'default' → 'is_default'
+    unstable_managedPricingSupport: true,   // only needed if using managed pricing
+  },
+
 });
 
 module.exports = shopify;
