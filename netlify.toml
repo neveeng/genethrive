@@ -4,9 +4,10 @@ redirects = []
 
 [functions]
   node_bundler = "esbuild"
+  directory = "netlify/functions"
 
 [functions."save-health-profile"]
-  node_version = "18"
+  NODE_VERSION = "18"
   
 [functions."*"]
 
