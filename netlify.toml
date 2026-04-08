@@ -12,8 +12,7 @@ redirects = []
 [functions."*"]
 
 [build]
-publish = "/Users/niveenghanem/Documents/GitHub/genethrive"
-publishOrigin = "default"
+publish = "."
 
 [build.environment]
 
