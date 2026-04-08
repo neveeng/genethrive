@@ -6,7 +6,7 @@ redirects = []
   node_bundler = "esbuild"
 
 [functions."save-health-profile"]
-  node_version = "18"
+  node_version = "20"
   
 [functions."*"]
 
