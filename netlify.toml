@@ -1,34 +1,29 @@
-functionsDirectory = "/opt/build/repo/netlify/functions"
-functionsDirectoryOrigin = "config"
-headersOrigin = "config"
-redirectsOrigin = "config"
 plugins = []
 headers = []
 redirects = []
 
-[build]
-publish = "/opt/build/repo"
-publishOrigin = "config"
-functions = "/opt/build/repo/netlify/functions"
-
-  [build.environment]
-
-  [build.processing]
-
-    [build.processing.css]
-
-    [build.processing.html]
-
-    [build.processing.images]
-
-    [build.processing.js]
-
-  [build.services]
-
 [functions]
-
-  [functions.save-health-profile]
-  NODE_VERSION = "20"
-
-  [functions."*"]
   node_bundler = "esbuild"
+
+[functions."save-health-profile"]
+  node_version = "18"
+  
+[functions."*"]
+
+[build]
+publish = "/Users/niveenghanem/Documents/GitHub/genethrive"
+publishOrigin = "default"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
