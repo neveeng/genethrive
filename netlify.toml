@@ -11,8 +11,9 @@ redirects = []
 [functions."*"]
 
 [build]
-publish = "/Users/niveenghanem/Documents/GitHub/genethrive"
-publishOrigin = "default"
+  publish = "/opt/build/repo"
+  publishOrigin = "default"
+  functions = "/opt/build/repo/netlify/functions"
 
 [build.environment]
 
