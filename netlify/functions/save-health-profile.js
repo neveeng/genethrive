@@ -45,7 +45,8 @@ const METAFIELD_DEFINITIONS = [
 ];
 
 export async function handler (event) {
-
+  console.log('Token starts with:', SHOPIFY_ADMIN_TOKEN?.substring(0, 10));
+  console.log('Domain:', SHOPIFY_STORE_DOMAIN);
   console.log('Node version:', process.version);
   console.log('fetch available:', typeof fetch);
 
