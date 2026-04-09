@@ -54,7 +54,7 @@ export async function handler (event) {
   const allowedOrigin = process.env.ALLOWED_ORIGIN || '';
 
   const corsHeaders = {
-    'Access-Control-Allow-Origin':  'https://genethrive.myshopify.com',
+    'Access-Control-Allow-Origin':  allowedOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
