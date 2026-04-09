@@ -27,7 +27,6 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import fetch from 'node-fetch';
 // Map of form field keys → Shopify metafield definitions
 // namespace: 'health' groups all fields together on the customer profile
 const METAFIELD_DEFINITIONS = [

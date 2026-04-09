@@ -3,19 +3,15 @@ headers = []
 redirects = []
 
 [functions]
-  node_bundler = "esbuild"
   directory = "netlify/functions"
-
-[functions."save-health-profile"]
-  node_version = "20"
+  node_bundler = "esbuild"
   
 [functions."*"]
 
 [build]
-  NODE_VERSION = "18"
   publish = "public"
-  publishOrigin = "default"
-  functions = "/opt/build/repo/netlify/functions"
+  NODE_VERSION = "18"
+ 
 
 [build.environment]
 
