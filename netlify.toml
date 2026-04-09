@@ -12,6 +12,7 @@ redirects = []
 [functions."*"]
 
 [build]
+  NODE_VERSION = "18"
   publish = "public"
   publishOrigin = "default"
   functions = "/opt/build/repo/netlify/functions"
