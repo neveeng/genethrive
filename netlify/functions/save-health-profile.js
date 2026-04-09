@@ -27,7 +27,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 // Map of form field keys → Shopify metafield definitions
 // namespace: 'health' groups all fields together on the customer profile
 const METAFIELD_DEFINITIONS = [
@@ -45,7 +45,7 @@ const METAFIELD_DEFINITIONS = [
   { key: 'health_age',                    shopifyKey: 'age',                    type: 'number_integer'         },
 ];
 
-exports.handler = async function (event) {
+export async function handler (event) {
 
   console.log('Node version:', process.version);
   console.log('fetch available:', typeof fetch);
@@ -54,11 +54,13 @@ exports.handler = async function (event) {
   const allowedOrigin = process.env.ALLOWED_ORIGIN || '';
 
   const corsHeaders = {
-    'Access-Control-Allow-Origin':  allowedOrigin,
+    'Access-Control-Allow-Origin':  'https://genethrive.myshopify.com',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
+// Wrap EVERYTHING in try/catch so CORS headers are always returned
+try {
   // Handle preflight request
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: corsHeaders, body: '' };
@@ -202,4 +204,13 @@ exports.handler = async function (event) {
       error:   'Failed to save any metafields. Check Netlify logs for details.',
     }),
   };
-};
+  } catch (err) {
+    // Catch-all — always return CORS headers even on unexpected crash
+    console.error('Unhandled error:', err);
+    return {
+      statusCode: 500,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: 'Unexpected server error', detail: err.message }),
+    };
+  }
+}
