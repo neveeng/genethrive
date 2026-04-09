@@ -17,6 +17,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "knex": "^3.2.8",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^8.0.4",
     "pdf-lib": "^1.17.1",
     "sqlite3": "^6.0.1",
@@ -24,5 +25,13 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neveeng/genethrive.git"
+  },
+  "bugs": {
+    "url": "https://github.com/neveeng/genethrive/issues"
+  },
+  "homepage": "https://github.com/neveeng/genethrive#readme"
 }
