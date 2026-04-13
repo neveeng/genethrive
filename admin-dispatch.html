@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeneThrive — Results Dispatch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sage:     #4A6741;
+      --sage-lt:  #6B8F62;
+      --sage-pale:#E8EEE7;
+      --ink:      #1C1C1A;
+      --ink-mid:  #4A4A46;
+      --ink-soft: #7A7A74;
+      --cream:    #F7F4EE;
+      --warm:     #EDE8DF;
+      --border:   #D6CFC3;
+      --radius:   10px;
+      --red:      #B91C1C;
+      --red-bg:   #FEF2F2;
+      --red-bdr:  #FECACA;
+      --green:    #166534;
+      --green-bg: #F0FDF4;
+      --green-bdr:#BBF7D0;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Login screen ── */
+    #login-screen {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    #admin-screen {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .gt-header {
+      background: var(--ink);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .gt-brand {
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      color: #fff;
+    }
+
+    .gt-badge {
+      font-size: 11px;
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.7);
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.06em;
+    }
+
+    .gt-logout {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+
+    .gt-logout:hover { color: rgba(255,255,255,0.9); }
+
+    /* ── Main content ── */
+    .gt-main {
+      flex: 1;
+      padding: 40px 20px 80px;
+      max-width: 680px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .gt-page-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      font-weight: 400;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .gt-page-sub {
+      font-size: 14px;
+      color: var(--ink-soft);
+      margin-bottom: 32px;
+    }
+
+    /* ── Card ── */
+    .gt-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 36px;
+      margin-bottom: 20px;
+    }
+
+    .gt-card-title {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--warm);
+    }
+
+    /* ── Form fields ── */
+    .gt-field {
+      margin-bottom: 20px;
+    }
+
+    .gt-field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-mid);
+      margin-bottom: 7px;
+    }
+
+    .gt-field input,
+    .gt-field textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--cream);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .gt-field input:focus,
+    .gt-field textarea:focus {
+      border-color: var(--sage);
+      background: #fff;
+    }
+
+    .gt-field textarea {
+      resize: vertical;
+      min-height: 140px;
+      line-height: 1.6;
+    }
+
+    .gt-field .hint {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-top: 5px;
+    }
+
+    /* ── Client ID lookup ── */
+    .gt-lookup {
+      display: flex;
+      gap: 10px;
+    }
+
+    .gt-lookup input { flex: 1; }
+
+    .gt-lookup-btn {
+      padding: 11px 18px;
+      background: var(--warm);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-mid);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .gt-lookup-btn:hover {
+      background: var(--border);
+      color: var(--ink);
+    }
+
+    /* ── Order info panel ── */
+    .gt-order-info {
+      display: none;
+      background: var(--sage-pale);
+      border: 1px solid #c5d9c0;
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    .gt-order-info.visible { display: block; }
+
+    .gt-order-info strong { color: var(--sage); }
+
+    .gt-order-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .gt-order-row:last-child { margin-bottom: 0; }
+
+    .gt-order-key {
+      color: var(--ink-soft);
+      min-width: 90px;
+    }
+
+    /* ── Submit button ── */
+    .gt-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--sage);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .gt-submit:hover:not(:disabled) { background: var(--sage-lt); }
+    .gt-submit:disabled { opacity: 0.6; pointer-events: none; }
+
+    .gt-submit.loading::after {
+      content: '';
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Alert messages ── */
+    .gt-alert {
+      display: none;
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .gt-alert.visible { display: block; }
+
+    .gt-alert.success {
+      background: var(--green-bg);
+      border: 1px solid var(--green-bdr);
+      color: var(--green);
+    }
+
+    .gt-alert.error {
+      background: var(--red-bg);
+      border: 1px solid var(--red-bdr);
+      color: var(--red);
+    }
+
+    /* ── Login card ── */
+    .login-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 44px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-logo {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 24px;
+    }
+
+    .login-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .login-sub {
+      font-size: 13px;
+      color: var(--ink-soft);
+      margin-bottom: 28px;
+    }
+
+    .login-error {
+      display: none;
+      font-size: 13px;
+      color: var(--red);
+      background: var(--red-bg);
+      border: 1px solid var(--red-bdr);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+
+    .login-error.visible { display: block; }
+
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--ink);
+      color: var(--cream);
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+
+    .login-btn:hover { background: var(--ink-mid); }
+
+    /* ── Recent dispatches log ── */
+    .gt-log {
+      font-size: 13px;
+      color: var(--ink-mid);
+    }
+
+    .gt-log-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--warm);
+    }
+
+    .gt-log-item:last-child { border-bottom: none; }
+
+    .gt-log-id { font-weight: 500; color: var(--ink); }
+
+    .gt-log-time { font-size: 12px; color: var(--ink-soft); }
+
+    .gt-log-status {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .gt-log-empty {
+      color: var(--ink-soft);
+      font-size: 13px;
+      padding: 12px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ LOGIN SCREEN ══ -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-logo">GeneThrive</div>
+      <div class="login-title">Ops admin</div>
+      <div class="login-sub">Internal use only — results dispatch portal</div>
+      <div class="login-error" id="login-error">Incorrect password. Please try again.</div>
+      <div class="gt-field">
+        <label for="admin-password">Password</label>
+        <input type="password" id="admin-password" placeholder="Enter ops password" autocomplete="current-password">
+      </div>
+      <button class="login-btn" onclick="login()">Sign in</button>
+    </div>
+  </div>
+
+  <!-- ══ ADMIN SCREEN ══ -->
+  <div id="admin-screen">
+
+    <div class="gt-header">
+      <span class="gt-brand">GENETHRIVE</span>
+      <span class="gt-badge">Ops Admin</span>
+      <button class="gt-logout" onclick="logout()">Sign out</button>
+    </div>
+
+    <div class="gt-main">
+      <div class="gt-page-title">Results dispatch</div>
+      <div class="gt-page-sub">Paste DNA results from the lab email and dispatch partner PDFs.</div>
+
+      <!-- Success / error alerts -->
+      <div class="gt-alert success" id="alert-success"></div>
+      <div class="gt-alert error" id="alert-error"></div>
+
+      <!-- Dispatch form -->
+      <div class="gt-card">
+        <div class="gt-card-title">New results — dispatch to partners</div>
+
+        <!-- Client ID lookup -->
+        <div class="gt-field">
+          <label for="client-id">Client ID</label>
+          <div class="gt-lookup">
+            <input
+              type="text"
+              id="client-id"
+              placeholder="e.g. GT-1042-a3f9c2"
+              oninput="clearOrderInfo()"
+            >
+            <button class="gt-lookup-btn" onclick="lookupOrder()">
+              Look up order
+            </button>
+          </div>
+          <div class="hint">Found on the ops email sent when the order was placed.</div>
+        </div>
+
+        <!-- Order info panel — shown after lookup -->
+        <div class="gt-order-info" id="order-info">
+          <div class="gt-order-row">
+            <span class="gt-order-key">Order #</span>
+            <span id="info-order-number">—</span>
+          </div>
+          <div class="gt-order-row">
+            <span class="gt-order-key">Order date</span>
+            <span id="info-order-date">—</span>
+          </div>
+          <div class="gt-order-row">
+            <span class="gt-order-key">Client email</span>
+            <span id="info-email">—</span>
+          </div>
+          <div class="gt-order-row">
+            <span class="gt-order-key">Status</span>
+            <span id="info-status">—</span>
+          </div>
+        </div>
+
+        <!-- DNA results -->
+        <div class="gt-field" style="margin-top:20px">
+          <label for="results-text">DNA results summary</label>
+          <textarea
+            id="results-text"
+            placeholder="Paste the results summary from the lab email here. This will appear in all 3 partner PDFs…"
+          ></textarea>
+          <div class="hint">Copy the relevant section from the lab email. Do not include client name or personal details.</div>
+        </div>
+
+        <!-- Optional report URL -->
+        <div class="gt-field">
+          <label for="report-url">Lab report URL <span style="font-weight:400;color:var(--ink-soft)">(optional)</span></label>
+          <input
+            type="url"
+            id="report-url"
+            placeholder="https://lab-portal.com/report/abc123"
+          >
+          <div class="hint">If the lab provided a link to the full report, add it here — it will be included in the Nutripath PDF.</div>
+        </div>
+
+        <button class="gt-submit" id="dispatch-btn" onclick="dispatchResults()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Dispatch to Nutripath, Pharmacist &amp; Naturopath
+        </button>
+      </div>
+
+      <!-- Recent dispatches log -->
+      <div class="gt-card">
+        <div class="gt-card-title">Recent dispatches</div>
+        <div class="gt-log" id="dispatch-log">
+          <div class="gt-log-empty">No dispatches yet this session.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  // ── Config ────────────────────────────────────────────────────────────────
+  // Replace this URL with your actual deployed Netlify function URL
+  const DISPATCH_URL = 'https://genethrive.netlify.app/.netlify/functions/dispatch-results';
+
+  // This is the LAB_WEBHOOK_SECRET value from your .env
+  // Keep this page password-protected so this value stays internal
+  const LAB_SECRET   = '362da863f86bd0620e5b913023cb4a2b03a937f22d119e99ead1117844eb9442';
+
+  // Simple ops password — change this to something strong
+  // For a more secure setup your developer can move this to a Netlify env var
+  const OPS_PASSWORD = 'genethr$ve0ps2024';
+
+  // ── Login ─────────────────────────────────────────────────────────────────
+  function login() {
+    const pw = document.getElementById('admin-password').value;
+    if (pw === OPS_PASSWORD) {
+      sessionStorage.setItem('gt-authed', '1');
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-screen').style.display = 'flex';
+      document.getElementById('admin-screen').style.flexDirection = 'column';
+    } else {
+      document.getElementById('login-error').classList.add('visible');
+      document.getElementById('admin-password').value = '';
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('gt-authed');
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('admin-screen').style.display = 'none';
+    document.getElementById('admin-password').value = '';
+  }
+
+  // Auto-login if already authenticated this session
+  if (sessionStorage.getItem('gt-authed')) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('admin-screen').style.display = 'flex';
+    document.getElementById('admin-screen').style.flexDirection = 'column';
+  }
+
+  // Allow Enter key on password field
+  document.getElementById('admin-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+
+  // ── Order lookup ──────────────────────────────────────────────────────────
+  async function lookupOrder() {
+    const clientId = document.getElementById('client-id').value.trim();
+    if (!clientId) return;
+
+    const btn = document.querySelector('.gt-lookup-btn');
+    btn.textContent = 'Looking up…';
+    btn.disabled = true;
+
+    try {
+      // Call a simple lookup endpoint (see lookup-order.js below)
+      const res  = await fetch(`https://genethrive.netlify.app/.netlify/functions/lookup-order?clientId=${encodeURIComponent(clientId)}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.order) throw new Error(data.error || 'Order not found');
+
+      document.getElementById('info-order-number').textContent = `#${data.order.order_number}`;
+      document.getElementById('info-order-date').textContent   = new Date(data.order.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+      document.getElementById('info-email').textContent        = data.order.email;
+      document.getElementById('info-status').textContent       = data.order.tags?.includes('results-dispatched') ? '⚠ Results already dispatched' : '✓ Ready to dispatch';
+      document.getElementById('order-info').classList.add('visible');
+
+    } catch (err) {
+      showAlert('error', `Could not find order for Client ID "${clientId}". Check the ID and try again.`);
+    } finally {
+      btn.textContent = 'Look up order';
+      btn.disabled    = false;
+    }
+  }
+
+  function clearOrderInfo() {
+    document.getElementById('order-info').classList.remove('visible');
+  }
+
+  // ── Dispatch ──────────────────────────────────────────────────────────────
+  async function dispatchResults() {
+    const clientId  = document.getElementById('client-id').value.trim();
+    const results   = document.getElementById('results-text').value.trim();
+    const reportUrl = document.getElementById('report-url').value.trim();
+
+    if (!clientId) return showAlert('error', 'Please enter a Client ID.');
+    if (!results)  return showAlert('error', 'Please paste the DNA results summary.');
+
+    const btn = document.getElementById('dispatch-btn');
+    btn.classList.add('loading');
+    btn.disabled    = true;
+    btn.textContent = 'Dispatching…';
+
+    clearAlerts();
+
+    try {
+      const res = await fetch(DISPATCH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type':        'application/json',
+          'X-GeneThrive-Secret': LAB_SECRET,
+        },
+        body: JSON.stringify({
+          clientId,
+          results,
+          reportUrl: reportUrl || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.body || data.error || 'Dispatch failed');
+
+      showAlert('success', `✓ Results dispatched for ${clientId}. PDFs sent to Nutripath, Pharmacist, and Naturopath. Client notification sent.`);
+      addToLog(clientId);
+
+      // Clear form
+      document.getElementById('client-id').value   = '';
+      document.getElementById('results-text').value = '';
+      document.getElementById('report-url').value   = '';
+      clearOrderInfo();
+
+    } catch (err) {
+      showAlert('error', `Dispatch failed: ${err.message}. Check the Netlify logs for details.`);
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled    = false;
+      btn.innerHTML   = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Dispatch to Nutripath, Pharmacist &amp; Naturopath';
+    }
+  }
+
+  // ── Log ───────────────────────────────────────────────────────────────────
+  const dispatchHistory = [];
+
+  function addToLog(clientId) {
+    dispatchHistory.unshift({ clientId, time: new Date() });
+    renderLog();
+  }
+
+  function renderLog() {
+    const log = document.getElementById('dispatch-log');
+    if (dispatchHistory.length === 0) {
+      log.innerHTML = '<div class="gt-log-empty">No dispatches yet this session.</div>';
+      return;
+    }
+    log.innerHTML = dispatchHistory.map(item => `
+      <div class="gt-log-item">
+        <span class="gt-log-id">${item.clientId}</span>
+        <span class="gt-log-time">${item.time.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="gt-log-status">Sent</span>
+      </div>
+    `).join('');
+  }
+
+  // ── Alerts ────────────────────────────────────────────────────────────────
+  function showAlert(type, message) {
+    const el = document.getElementById(`alert-${type}`);
+    el.textContent = message;
+    el.classList.add('visible');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (type === 'success') setTimeout(() => el.classList.remove('visible'), 8000);
+  }
+
+  function clearAlerts() {
+    document.getElementById('alert-success').classList.remove('visible');
+    document.getElementById('alert-error').classList.remove('visible');
+  }
+</script>
+</body>
+</html>
