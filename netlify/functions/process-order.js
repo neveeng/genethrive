@@ -100,6 +100,32 @@ const COLORS = {
 };
 
 /**
+ * Sanitize text for WinAnsi encoding used by pdf-lib StandardFonts.
+ * Replaces common special characters with ASCII equivalents.
+ */
+function sanitizeText(text) {
+  if (!text) return '—';
+  return String(text)
+    .replace(/→/g, '->')
+    .replace(/←/g, '<-')
+    .replace(/↑/g, '^')
+    .replace(/↓/g, 'v')
+    .replace(/–/g, '-')
+    .replace(/—/g, '-')
+    .replace(/•/g, '*')
+    .replace(/·/g, '.')
+    .replace(/"/g, '"')
+    .replace(/"/g, '"')
+    .replace(/'/g, "'")
+    .replace(/'/g, "'")
+    .replace(/…/g, '...')
+    .replace(/™/g, 'TM')
+    .replace(/®/g, '(R)')
+    .replace(/©/g, '(C)')
+    .replace(/[^\x00-\xFF]/g, ''); // strip anything outside Latin-1
+}
+
+/**
  * Draw a horizontal rule line on the PDF page.
  */
 function drawRule(page, y, { width = 515, x = 40, color = COLORS.border } = {}) {
@@ -115,13 +141,13 @@ function drawRule(page, y, { width = 515, x = 40, color = COLORS.border } = {}) 
  * Draw a labelled row (left label, right value) — used for data tables.
  */
 function drawRow(page, fonts, y, label, value, { bold = false } = {}) {
-  page.drawText(label, {
+  page.drawText(sanitizeText(label), {
     x: 40, y,
     size: 10,
     font: fonts.regular,
     color: COLORS.soft,
   });
-  page.drawText(String(value || '—'), {
+  page.drawText(sanitizeText(value), {
     x: 220, y,
     size: 10,
     font: bold ? fonts.bold : fonts.regular,
@@ -141,7 +167,7 @@ function drawSectionHeading(page, fonts, y, text) {
     height: 20,
     color: COLORS.cream,
   });
-  page.drawText(text.toUpperCase(), {
+  page.drawText(sanitizeText(text).toUpperCase(), {
     x: 46, y,
     size: 8,
     font: fonts.bold,
@@ -195,7 +221,7 @@ function drawHeader(page, fonts, title, subtitle) {
  */
 function drawFooter(page, fonts, text) {
   drawRule(page, 44);
-  page.drawText(text, {
+  page.drawText(sanitizeText(text), {
     x: 40, y: 30,
     size: 8,
     font: fonts.regular,
@@ -291,7 +317,7 @@ async function generateLabPdf(clientId, health, orderDate) {
   ];
 
   for (const line of instructions) {
-    page.drawText(line, { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
+    page.drawText(sanitizeText(line), { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
     y -= 16;
   }
 
@@ -399,7 +425,7 @@ async function generateOpsPdf(clientId, order, health) {
   ];
 
   for (const line of milestones) {
-    page.drawText(line, { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
+    page.drawText(sanitizeText(line), { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
     y -= 16;
   }
 
