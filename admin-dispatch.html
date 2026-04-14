@@ -508,13 +508,11 @@
   // Replace this URL with your actual deployed Netlify function URL
   const DISPATCH_URL = 'https://genethrive.netlify.app/.netlify/functions/dispatch-results';
 
-  // This is the LAB_WEBHOOK_SECRET value from your .env
-  // Keep this page password-protected so this value stays internal
-  const LAB_SECRET   = '362da863f86bd0620e5b913023cb4a2b03a937f22d119e99ead1117844eb9442';
+  const OPS_TOKEN    = process.env.OPS_ADMIN_TOKEN; // same value as OPS_ADMIN_TOKEN in Netlify
 
   // Simple ops password — change this to something strong
   // For a more secure setup your developer can move this to a Netlify env var
-  const OPS_PASSWORD = 'genethr$ve0ps2024';
+  const OPS_PASSWORD = process.env.OPS_PASSWORD;
 
   // ── Login ─────────────────────────────────────────────────────────────────
   function login() {
