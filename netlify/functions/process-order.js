@@ -596,6 +596,9 @@ async function sendClientConfirmation(transporter, order, clientId) {
 
 exports.handler = async function (event) {
 
+  console.log('METHOD:', event.httpMethod);
+  console.log('HEADERS:', JSON.stringify(event.headers));
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
   }
@@ -608,10 +611,15 @@ exports.handler = async function (event) {
     .update(rawBody, 'utf8')
     .digest('base64');
 
+  console.log('HMAC received:', shopifyHmac);
+  console.log('HMAC computed:', computedHmac);
+  console.log('HMAC match:', computedHmac === shopifyHmac);
+
   if (computedHmac !== shopifyHmac) {
     console.warn('GeneThrive: Webhook HMAC verification failed');
     return { statusCode: 401, body: 'Unauthorized' };
   }
+  console.log('HMAC verified — proceeding...');
 
   // 2. Parse order
   let order;
