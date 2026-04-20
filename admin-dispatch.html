@@ -678,8 +678,9 @@
     console.log(opsConfig.opsPassword);
   }
   // ── Login ─────────────────────────────────────────────────────────────────
-  function login() {
+  async function login() {
     const pw = document.getElementById('admin-password').value;
+    const opsConfig = await getConfig();
     if (pw === opsConfig.opsPassword) {
       sessionStorage.setItem('gt-authed', '1');
       document.getElementById('login-screen').style.display = 'none';
