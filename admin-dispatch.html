@@ -672,11 +672,11 @@
   // Simple session password to gate the UI — separate from OPS_TOKEN
   // const OPS_PASSWORD = "[[env.OPS_PASSWORD]]";
 
-  const CONFIG = {
-    opsToken:    '[[env.SHOPIFY_STORE_DOMAIN]]',
-    opsPassword: '[[env.OPS_PASSWORD]]',
-    allowedOrigin: '[[env.ALLOWED_ORIGIN]]',
-  };
+  async function getConfig() {
+    const res = await fetch('/.netlify/functions/config');
+    const config = await res.json();
+    console.log(config.opsPassword);
+  }
   // ── Login ─────────────────────────────────────────────────────────────────
   function login() {
     const pw = document.getElementById('admin-password').value;
