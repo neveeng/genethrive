@@ -36,8 +36,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const Stripe     = require('stripe');
-const nodemailer = require('nodemailer');
+import Stripe from 'stripe';
+import { createTransport } from 'nodemailer';
+import { shopifyFetch } from './shopify-token';
 
 // ── Milestone config ──────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ const MILESTONES = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function createTransporter() {
-  return nodemailer.createTransport({
+  return createTransport({
     host:   process.env.SMTP_HOST,
     port:   parseInt(process.env.SMTP_PORT || '587', 10),
     secure: false,
@@ -108,7 +109,7 @@ async function tagShopifyOrder(orderId, existingTags, newTag) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-exports.handler = async function (event) {
+export async function handler (event) {
 
   const corsHeaders = {
     'Access-Control-Allow-Origin':  '*',
@@ -317,4 +318,4 @@ exports.handler = async function (event) {
       message:    `${config.amountLabel} successfully transferred to ${config.recipient}`,
     }),
   };
-};
+}

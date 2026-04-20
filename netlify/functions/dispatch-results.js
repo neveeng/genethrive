@@ -50,8 +50,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const nodemailer = require('nodemailer');
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+import { createTransport } from 'nodemailer';
+import { shopifyFetch } from './shopify-token';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 // ── PDF helpers (shared style with process-order.js) ─────────────────────────
 
@@ -320,7 +321,7 @@ function wrapText(text, maxChars) {
 // ── Email sender ──────────────────────────────────────────────────────────────
 
 function createTransporter() {
-  return nodemailer.createTransport({
+  return createTransport({
     host:   process.env.SMTP_HOST,
     port:   parseInt(process.env.SMTP_PORT || '587', 10),
     secure: false,
@@ -453,7 +454,7 @@ async function sendClientNotification(transporter, order, clientId) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-exports.handler = async function (event) {
+export async function handler (event) {
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
@@ -576,4 +577,4 @@ exports.handler = async function (event) {
       message:  'Results dispatched to Nutripath, Pharmacist, and Naturopath',
     }),
   };
-};
+}

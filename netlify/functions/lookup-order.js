@@ -18,7 +18,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-exports.handler = async function (event) {
+import { shopifyFetch } from './shopify-token';
+
+export async function handler (event) {
 
   const corsHeaders = {
     'Access-Control-Allow-Origin':  '*',
@@ -90,4 +92,4 @@ exports.handler = async function (event) {
       body: JSON.stringify({ error: 'Failed to query Shopify' }),
     };
   }
-};
+}

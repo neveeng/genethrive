@@ -34,18 +34,20 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const Stripe     = require('stripe');
-const crypto     = require('crypto');
-const nodemailer = require('nodemailer');
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+import Stripe from 'stripe';
+import { createHash } from 'crypto';
+import { createTransport } from 'nodemailer';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { shopifyFetch } from './shopify-token';
 
 // ── Env var validation ────────────────────────────────────────────────────────
 
 function validateEnv() {
   const required = [
     'STRIPE_SECRET_KEY',
-    'SHOPIFY_STORE_DOMAIN',
-    'SHOPIFY_ADMIN_TOKEN',
+    'SHOPIFY_SHOP',
+    'SHOPIFY_CLIENT_ID',
+    'SHOPIFY_CLIENT_SECRET',
     'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS',
     'EMAIL_FROM', 'EMAIL_OPS', 'EMAIL_LAB', 'EMAIL_REPLY_TO',
   ];
@@ -66,8 +68,7 @@ function validateEnv() {
 // ── Client ID ────────────────────────────────────────────────────────────────
 
 function generateClientId(paymentIntentId) {
-  const hash = crypto
-    .createHash('sha256')
+  const hash = createHash('sha256')
     .update(paymentIntentId)
     .digest('hex')
     .slice(0, 6);
@@ -236,7 +237,7 @@ async function generateLabPdf(clientId, healthData, orderDate) {
   y -= 10; drawRule(page, y); y -= 20;
   y = drawSection(page, fonts, y, 'Processing Instructions');
   y -= 4;
-  const siteUrl = (process.env.URL_NETLIFY || process.env.URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
+  const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
   const instructions = [
     '1.  Register this test kit using the Client ID above only.',
     '2.  Do not record client name, email, or address in your system.',
@@ -255,7 +256,7 @@ async function generateLabPdf(clientId, healthData, orderDate) {
 // ── Email ─────────────────────────────────────────────────────────────────────
 
 function createTransporter() {
-  return nodemailer.createTransport({
+  return createTransport({
     host:   process.env.SMTP_HOST,
     port:   parseInt(process.env.SMTP_PORT || '587', 10),
     secure: false,
@@ -265,7 +266,7 @@ function createTransporter() {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-exports.handler = async function (event) {
+export async function handler (event) {
 
   const corsHeaders = {
     'Access-Control-Allow-Origin':  '*',
@@ -414,14 +415,10 @@ exports.handler = async function (event) {
   try {
     console.log(`GeneThrive: Creating Shopify order for ${clientDetails.email}`);
 
-    const shopifyRes = await fetch(
-      `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/orders.json`,
+    const shopifyRes = await shopifyFetch(
+      '/admin/api/2024-01/orders.json',
       {
         method: 'POST',
-        headers: {
-          'Content-Type':           'application/json',
-          'X-Shopify-Access-Token': process.env.SHOPIFY_ADMIN_TOKEN,
-        },
         body: JSON.stringify({
           order: {
             email:              clientDetails.email,
@@ -630,4 +627,4 @@ exports.handler = async function (event) {
       subscription: subscriptionId,
     }),
   };
-};
+}
