@@ -16,6 +16,7 @@ redirects = []
 [build.environment]
 
 [build.processing]
+  skip_processing = false
 
 [build.processing.css]
 

@@ -667,10 +667,10 @@
   // Your developer injects it via a Netlify Edge transform or build plugin.
   // For simplicity, set it here as a placeholder and treat this file as internal only.
   // It authenticates the admin page to admin-trigger.js — it is NOT LAB_WEBHOOK_SECRET.
-  const OPS_TOKEN    = process.env.OPS_ADMIN_TOKEN || 'placeholder-token';
+  const OPS_TOKEN    = "[[env.OPS_ADMIN_TOKEN]]";
 
   // Simple session password to gate the UI — separate from OPS_TOKEN
-  const OPS_PASSWORD = process.env.OPS_PASSWORD;
+  const OPS_PASSWORD = "[[env.OPS_PASSWORD]]";
 
   // ── Login ─────────────────────────────────────────────────────────────────
   function login() {
