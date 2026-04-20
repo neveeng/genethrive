@@ -667,15 +667,20 @@
   // Your developer injects it via a Netlify Edge transform or build plugin.
   // For simplicity, set it here as a placeholder and treat this file as internal only.
   // It authenticates the admin page to admin-trigger.js — it is NOT LAB_WEBHOOK_SECRET.
-  const OPS_TOKEN    = "[[env.OPS_ADMIN_TOKEN]]";
+  // const OPS_TOKEN    = "[[env.OPS_ADMIN_TOKEN]]";
 
   // Simple session password to gate the UI — separate from OPS_TOKEN
-  const OPS_PASSWORD = "[[env.OPS_PASSWORD]]";
+  // const OPS_PASSWORD = "[[env.OPS_PASSWORD]]";
 
+  const CONFIG = {
+    opsToken:    '[[env.SHOPIFY_STORE_DOMAIN]]',
+    opsPassword: '[[env.OPS_PASSWORD]]',
+    allowedOrigin: '[[env.ALLOWED_ORIGIN]]',
+  };
   // ── Login ─────────────────────────────────────────────────────────────────
   function login() {
     const pw = document.getElementById('admin-password').value;
-    if (pw === OPS_PASSWORD) {
+    if (pw === CONFIG.opsPassword) {
       sessionStorage.setItem('gt-authed', '1');
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('admin-screen').style.display = 'flex';
@@ -760,7 +765,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Ops-Token':  OPS_TOKEN,
+          'X-Ops-Token':  CONFIG.opsToken,
         },
         body: JSON.stringify({
           clientId,
@@ -858,7 +863,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Ops-Token':  OPS_TOKEN,
+          'X-Ops-Token':  CONFIG.opsToken,
         },
         body: JSON.stringify({ clientId, milestone }),
       });
