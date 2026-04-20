@@ -675,7 +675,6 @@
   async function getConfig() {
     const res = await fetch('/.netlify/functions/config');
     const opsConfig = await res.json();
-    console.log(opsConfig.opsPassword);
   }
   // ── Login ─────────────────────────────────────────────────────────────────
   async function login() {
@@ -760,6 +759,8 @@
     btn.textContent = 'Dispatching…';
 
     clearAlerts();
+
+    const opsConfig = await getConfig();
 
     try {
       const res = await fetch(TRIGGER_URL, {
@@ -858,6 +859,8 @@
     btn.disabled = true;
     const originalText = btn.textContent;
     btn.textContent = 'Releasing…';
+
+    const opsConfig = await getConfig();
 
     try {
       const res = await fetch(RELEASE_URL, {
