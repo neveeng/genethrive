@@ -67,7 +67,7 @@ exports.handler = async function (event) {
   }
 
   // 3. Forward to dispatch-results with the lab secret added server-side
-  const dispatchUrl = `${process.env.URL}/.netlify/functions/dispatch-results`;
+  const dispatchUrl = `${process.env.URL_NETLIFY }/.netlify/functions/dispatch-results`;
 
   try {
     const res = await fetch(dispatchUrl, {
