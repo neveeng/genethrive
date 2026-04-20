@@ -674,13 +674,13 @@
 
   async function getConfig() {
     const res = await fetch('/.netlify/functions/config');
-    const config = await res.json();
-    console.log(config.opsPassword);
+    const opsConfig = await res.json();
+    console.log(opsConfig.opsPassword);
   }
   // ── Login ─────────────────────────────────────────────────────────────────
   function login() {
     const pw = document.getElementById('admin-password').value;
-    if (pw === CONFIG.opsPassword) {
+    if (pw === opsConfig.opsPassword) {
       sessionStorage.setItem('gt-authed', '1');
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('admin-screen').style.display = 'flex';
@@ -765,7 +765,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Ops-Token':  CONFIG.opsToken,
+          'X-Ops-Token':  opsConfig.opsToken,
         },
         body: JSON.stringify({
           clientId,
@@ -863,7 +863,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Ops-Token':  CONFIG.opsToken,
+          'X-Ops-Token':  opsConfig.opsToken,
         },
         body: JSON.stringify({ clientId, milestone }),
       });
