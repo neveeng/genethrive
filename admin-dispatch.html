@@ -675,6 +675,7 @@
   async function getConfig() {
     const res = await fetch('/.netlify/functions/config');
     const opsConfig = await res.json();
+    return opsConfig;
   }
   // ── Login ─────────────────────────────────────────────────────────────────
   async function login() {
