@@ -67,26 +67,33 @@ exports.handler = async function (event) {
   }
 
   // 3. Forward to dispatch-results with the lab secret added server-side
-  const dispatchUrl = `${process.env.URL_NETLIFY}/.netlify/functions/dispatch-results`;
+  const dispatchUrl = `${process.env.URL}/.netlify/functions/dispatch-results`;
 
   try {
     const res = await fetch(dispatchUrl, {
       method: 'POST',
       headers: {
         'Content-Type':        'application/json',
-        'X-GeneThrive-Secret': process.env.LAB_WEBHOOK_SECRET, // never exposed to browser
+        'X-GeneThrive-Secret': process.env.LAB_WEBHOOK_SECRET,
       },
       body: JSON.stringify({ clientId, results, reportUrl }),
     });
 
-    const data = await res.json();
+    // Safely parse — dispatch-results may return plain text on some errors
+    const rawText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (_) {
+      data = { error: rawText || 'Dispatch failed' };
+    }
 
     if (!res.ok) {
       console.error('GeneThrive admin-trigger: dispatch-results returned', res.status, data);
       return {
         statusCode: res.status,
         headers: corsHeaders,
-        body: JSON.stringify({ error: data.error || 'Dispatch failed' }),
+        body: JSON.stringify({ error: data.error || `Dispatch failed with status ${res.status}` }),
       };
     }
 

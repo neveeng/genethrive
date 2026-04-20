@@ -152,11 +152,11 @@ async function generateOpsPdf(clientId, clientDetails, healthData, orderDate) {
   y -= 4;
   const milestones = [
     '[ ]  DNA kit dispatched to client',
-    '[ ]  Nutripath payment released — $275.00 ✓ auto-transferred',
-    '[ ]  Ops payment retained — $95.00 ✓ auto-transferred',
+    '[x]  Nutripath payment released — $275.00 — auto-transferred',
+    '[x]  Ops payment retained — $95.00 — auto-transferred',
     '[ ]  Client pickup confirmed → trigger release-payment (pharmacist $140.00)',
     '[ ]  CIL consultation completed → trigger release-payment (naturopath $65.00)',
-    '[ ]  Month 2 Stripe auto-debit — $200.00 ✓ subscription created',
+    '[x]  Month 2 Stripe auto-debit — $200.00 — subscription created',
   ];
   for (const line of milestones) {
     page.drawText(line, { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
@@ -383,9 +383,14 @@ exports.handler = async function (event) {
       }
     );
 
-    const shopifyData  = await shopifyRes.json();
-    shopifyOrderNumber = shopifyData.order?.order_number;
-    console.log(`GeneThrive: Shopify order #${shopifyOrderNumber} created for ${clientId}`);
+    const shopifyData = await shopifyRes.json();
+
+    if (!shopifyRes.ok) {
+      console.error('GeneThrive: Shopify order API error —', JSON.stringify(shopifyData.errors || shopifyData));
+    } else {
+      shopifyOrderNumber = shopifyData.order?.order_number;
+      console.log(`GeneThrive: Shopify order #${shopifyOrderNumber} created for ${clientId}`);
+    }
   } catch (err) {
     console.error('GeneThrive: Shopify order creation failed —', err.message);
   }
@@ -427,9 +432,9 @@ exports.handler = async function (event) {
             </div>
             <p style="font-size:13px;font-weight:600;margin:0 0 8px">Immediate actions:</p>
             <ol style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 16px;padding-left:18px">
-              <li>$275 auto-transferred to Nutripath ✓</li>
-              <li>$95 auto-transferred to Ops ✓</li>
-              <li>$200/mo subscription created ✓</li>
+              <li>$275 auto-transferred to Nutripath &#10003;</li>
+              <li>$95 auto-transferred to Ops &#10003;</li>
+              <li>$200/mo subscription created &#10003;</li>
               <li>Dispatch DNA kit to client</li>
               <li>Trigger pharmacist release ($140) after pickup</li>
               <li>Trigger naturopath release ($65) after CIL</li>
