@@ -317,9 +317,11 @@ exports.handler = async function (event) {
     // Attach it to the customer if not already attached
     await stripe.paymentMethods.attach(paymentMethod, { customer: customerId });
 
-    // Set it as the default for future invoices
+    // Set default payment method and store clientId in metadata
+    // handle-subscription.js reads clientId to look up the Shopify order
     await stripe.customers.update(customerId, {
       invoice_settings: { default_payment_method: paymentMethod },
+      metadata: { clientId },
     });
 
     // Create the subscription — first charge starts next billing cycle
