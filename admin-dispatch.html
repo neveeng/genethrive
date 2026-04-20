@@ -388,6 +388,108 @@
       font-size: 13px;
       padding: 12px 0;
     }
+
+    /* ── Milestone cards ── */
+    .gt-milestone-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 560px) {
+      .gt-milestone-grid { grid-template-columns: 1fr; }
+    }
+
+    .gt-milestone-card {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      background: var(--cream);
+    }
+
+    .gt-milestone-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .gt-milestone-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .gt-milestone-icon.pickup { background: #FEF3C7; color: #92400E; }
+    .gt-milestone-icon.cil    { background: var(--sage-pale); color: var(--sage); }
+
+    .gt-milestone-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .gt-milestone-amount {
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+
+    .gt-milestone-desc {
+      font-size: 12px;
+      color: var(--ink-soft);
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .gt-milestone-btn {
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .gt-milestone-btn.pickup {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+
+    .gt-milestone-btn.pickup:hover { background: #FDE68A; }
+
+    .gt-milestone-btn.cil {
+      background: var(--sage-pale);
+      color: var(--sage);
+    }
+
+    .gt-milestone-btn.cil:hover { background: #d1e3ce; }
+
+    .gt-milestone-btn:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .gt-milestone-btn.loading::after {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
@@ -492,6 +594,58 @@
         </button>
       </div>
 
+      <!-- Milestone payment releases -->
+      <div class="gt-card">
+        <div class="gt-card-title">Milestone payment release</div>
+
+        <div class="gt-field">
+          <label for="milestone-client-id">Client ID</label>
+          <input type="text" id="milestone-client-id" placeholder="e.g. GT-1042-a3f9c2">
+          <div class="hint">Enter the Client ID from the original ops email.</div>
+        </div>
+
+        <div class="gt-milestone-grid">
+
+          <!-- Pickup -->
+          <div class="gt-milestone-card">
+            <div class="gt-milestone-header">
+              <div class="gt-milestone-icon pickup">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v10M5 8l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 14h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="gt-milestone-title">Pickup confirmed</div>
+                <div class="gt-milestone-amount">$140.00 → Pharmacist</div>
+              </div>
+            </div>
+            <p class="gt-milestone-desc">Client has collected their vitamins from the pharmacist.</p>
+            <button class="gt-milestone-btn pickup" onclick="releaseMilestone('pickup')">
+              Release $140.00 to Pharmacist
+            </button>
+          </div>
+
+          <!-- CIL -->
+          <div class="gt-milestone-card">
+            <div class="gt-milestone-header">
+              <div class="gt-milestone-icon cil">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2a5 5 0 100 10A5 5 0 009 2z" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 9l2 2 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="gt-milestone-title">CIL completed</div>
+                <div class="gt-milestone-amount">$65.00 → Naturopath</div>
+              </div>
+            </div>
+            <p class="gt-milestone-desc">Naturopath has completed the CIL consultation with client.</p>
+            <button class="gt-milestone-btn cil" onclick="releaseMilestone('cil')">
+              Release $65.00 to Naturopath
+            </button>
+          </div>
+
+        </div>
+
+        <div class="gt-alert success" id="milestone-success"></div>
+        <div class="gt-alert error"   id="milestone-error"></div>
+      </div>
+
       <!-- Recent dispatches log -->
       <div class="gt-card">
         <div class="gt-card-title">Recent dispatches</div>
@@ -505,13 +659,17 @@
 
 <script>
   // ── Config ────────────────────────────────────────────────────────────────
-  // Replace this URL with your actual deployed Netlify function URL
-  const DISPATCH_URL = 'https://genethrive.netlify.app/.netlify/functions/dispatch-results';
+  // Calls admin-trigger.js (secure proxy) — NOT dispatch-results directly.
+  // No secrets live in this file. All secrets stay in Netlify environment vars.
+  const TRIGGER_URL  = 'https://genethrive.netlify.app/.netlify/functions/admin-trigger';
 
-  const OPS_TOKEN    = process.env.OPS_ADMIN_TOKEN; // same value as OPS_ADMIN_TOKEN in Netlify
+  // OPS_ADMIN_TOKEN — set this in Netlify environment variables.
+  // Your developer injects it via a Netlify Edge transform or build plugin.
+  // For simplicity, set it here as a placeholder and treat this file as internal only.
+  // It authenticates the admin page to admin-trigger.js — it is NOT LAB_WEBHOOK_SECRET.
+  const OPS_TOKEN    = process.env.OPS_ADMIN_TOKEN || 'placeholder-token';
 
-  // Simple ops password — change this to something strong
-  // For a more secure setup your developer can move this to a Netlify env var
+  // Simple session password to gate the UI — separate from OPS_TOKEN
   const OPS_PASSWORD = process.env.OPS_PASSWORD;
 
   // ── Login ─────────────────────────────────────────────────────────────────
@@ -598,11 +756,11 @@
     clearAlerts();
 
     try {
-      const res = await fetch(DISPATCH_URL, {
+      const res = await fetch(TRIGGER_URL, {
         method: 'POST',
         headers: {
-          'Content-Type':        'application/json',
-          'X-GeneThrive-Secret': LAB_SECRET,
+          'Content-Type': 'application/json',
+          'X-Ops-Token':  OPS_TOKEN,
         },
         body: JSON.stringify({
           clientId,
@@ -662,6 +820,71 @@
     el.classList.add('visible');
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     if (type === 'success') setTimeout(() => el.classList.remove('visible'), 8000);
+  }
+
+  // ── Milestone payment release ─────────────────────────────────────────────
+  const RELEASE_URL = 'https://genethrive.netlify.app/.netlify/functions/release-payment';
+
+  async function releaseMilestone(milestone) {
+    const clientId = document.getElementById('milestone-client-id').value.trim();
+    const successEl = document.getElementById('milestone-success');
+    const errorEl   = document.getElementById('milestone-error');
+
+    successEl.classList.remove('visible');
+    errorEl.classList.remove('visible');
+
+    if (!clientId) {
+      errorEl.textContent = 'Please enter a Client ID above before releasing a payment.';
+      errorEl.classList.add('visible');
+      document.getElementById('milestone-client-id').focus();
+      return;
+    }
+
+    const config = {
+      pickup: { label: 'Release $140.00 to Pharmacist', confirm: 'Has the client confirmed pickup? This will transfer $140.00 to the pharmacist immediately.' },
+      cil:    { label: 'Release $65.00 to Naturopath',  confirm: 'Has the CIL consultation been completed? This will transfer $65.00 to the naturopath immediately.' },
+    };
+
+    if (!confirm(config[milestone].confirm)) return;
+
+    const btn = document.querySelector(`.gt-milestone-btn.${milestone}`);
+    btn.classList.add('loading');
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Releasing…';
+
+    try {
+      const res = await fetch(RELEASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ops-Token':  OPS_TOKEN,
+        },
+        body: JSON.stringify({ clientId, milestone }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 409) {
+        errorEl.textContent = `This milestone has already been released for ${clientId}. Check the Shopify order tags to confirm.`;
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      if (!res.ok) throw new Error(data.error || 'Release failed');
+
+      successEl.textContent = `✓ ${data.amount} successfully transferred to ${data.recipient} for ${clientId}. Transfer ID: ${data.transferId}`;
+      successEl.classList.add('visible');
+      setTimeout(() => successEl.classList.remove('visible'), 10000);
+
+    } catch (err) {
+      errorEl.textContent = `Release failed: ${err.message}`;
+      errorEl.classList.add('visible');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 
   function clearAlerts() {

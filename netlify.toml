@@ -9,7 +9,7 @@ redirects = []
 [functions."*"]
 
 [build]
-  publish = "public"
+  publish = "."
   NODE_VERSION = "18"
  
 
