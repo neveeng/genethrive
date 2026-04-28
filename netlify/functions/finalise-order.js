@@ -35,8 +35,8 @@
  */
 
 import Stripe from 'stripe';
-import { createHash } from 'crypto';
-import { createTransport } from 'nodemailer';
+import { crypto } from 'crypto';
+import { nodemailer } from 'nodemailer';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { shopifyFetch } from './shopify-token';
 
@@ -68,7 +68,8 @@ function validateEnv() {
 // ── Client ID ────────────────────────────────────────────────────────────────
 
 function generateClientId(paymentIntentId) {
-  const hash = createHash('sha256')
+  const hash = crypto
+    .createHash('sha256')
     .update(paymentIntentId)
     .digest('hex')
     .slice(0, 6);
@@ -161,15 +162,19 @@ async function generateOpsPdf(clientId, clientDetails, healthData, orderDate) {
 
   y = drawSection(page, fonts, y, 'Health Profile');
   y -= 4;
+  // Log health data keys for debugging
+  console.log('GeneThrive: Health data keys in PDF —', Object.keys(healthData));
+
+  const h = healthData || {};
   const healthRows = [
-    ['Pregnant/breastfeeding', healthData.health_pregnant_breastfeeding],
-    ['Conditions',    healthData.health_conditions === 'Yes' ? healthData.health_conditions_detail : 'None'],
-    ['Conditions2',   healthData.health_conditions2 === 'Yes' ? healthData.health_conditions_detail2 : 'None'],
-    ['Medications',   healthData.health_medications === 'Yes' ? healthData.health_medications_detail : 'None'],
-    ['Allergies',     healthData.health_allergies === 'Yes' ? healthData.health_allergies_detail : 'None'],
-    ['Gender',        healthData.health_gender],
-    ['Age',           healthData.health_age ? `${healthData.health_age} years` : '—'],
-    ['Fasting',       healthData.health_fasting === 'Yes' ? `Yes — ${healthData.health_fasting_detail || ''}` : 'No'],
+    ['Pregnant/breastfeeding', h.health_pregnant_breastfeeding || h['health_pregnant_breastfeeding']],
+    ['Conditions',   h.health_conditions === 'Yes' ? (h.health_conditions_detail || 'Yes — no detail') : (h.health_conditions || 'No')],
+    ['Conditions2',   h.health_conditions2 || h['health_conditions2']],
+    ['Medications',  h.health_medications === 'Yes' ? (h.health_medications_detail || 'Yes — no detail') : (h.health_medications || 'No')],
+    ['Allergies',    h.health_allergies === 'Yes' ? (h.health_allergies_detail || 'Yes — no detail') : (h.health_allergies || 'No')],
+    ['Gender',       h.health_gender],
+    ['Age',          h.health_age ? `${h.health_age} years` : '—'],
+    ['Fasting',      h.health_fasting === 'Yes' ? `Yes — ${h.health_fasting_detail || 'protocol not specified'}` : (h.health_fasting || 'No')],
   ];
   for (const [label, value] of healthRows) {
     y = drawRow(page, fonts, y, label, value || '—');
@@ -219,15 +224,16 @@ async function generateLabPdf(clientId, healthData, orderDate) {
 
   y = drawSection(page, fonts, y, 'Health Profile');
   y -= 4;
+  const hd = healthData || {};
   const rows = [
-    ['Pregnant/breastfeeding', healthData.health_pregnant_breastfeeding],
-    ['Conditions',    healthData.health_conditions === 'Yes' ? healthData.health_conditions_detail : 'None'],
-    ['Conditions2',   healthData.health_conditions2 === 'Yes' ? healthData.health_conditions_detail2 : 'None'],
-    ['Medications',   healthData.health_medications === 'Yes' ? healthData.health_medications_detail : 'None'],
-    ['Allergies',     healthData.health_allergies === 'Yes' ? healthData.health_allergies_detail : 'None'],
-    ['Gender',        healthData.health_gender],
-    ['Age',           healthData.health_age ? `${healthData.health_age} years` : '—'],
-    ['Fasting',       healthData.health_fasting === 'Yes' ? `Yes — ${healthData.health_fasting_detail || ''}` : 'No'],
+    ['Pregnant/breastfeeding', hd.health_pregnant_breastfeeding],
+    ['Conditions',   hd.health_conditions === 'Yes' ? (hd.health_conditions_detail || 'Yes') : (hd.health_conditions || 'No')],
+    ['Conditions2',   hd.health_conditions2],
+    ['Medications',  hd.health_medications === 'Yes' ? (hd.health_medications_detail || 'Yes') : (hd.health_medications || 'No')],
+    ['Allergies',    hd.health_allergies === 'Yes' ? (hd.health_allergies_detail || 'Yes') : (hd.health_allergies || 'No')],
+    ['Gender',       hd.health_gender],
+    ['Age',          hd.health_age ? `${hd.health_age} years` : '—'],
+    ['Fasting',      hd.health_fasting === 'Yes' ? `Yes — ${hd.health_fasting_detail || 'protocol not specified'}` : (hd.health_fasting || 'No')],
   ];
   for (const [label, value] of rows) {
     y = drawRow(page, fonts, y, label, value || '—');
@@ -256,7 +262,7 @@ async function generateLabPdf(clientId, healthData, orderDate) {
 // ── Email ─────────────────────────────────────────────────────────────────────
 
 function createTransporter() {
-  return createTransport({
+  return nodemailer.createTransport({
     host:   process.env.SMTP_HOST,
     port:   parseInt(process.env.SMTP_PORT || '587', 10),
     secure: false,
@@ -627,4 +633,4 @@ export async function handler (event) {
       subscription: subscriptionId,
     }),
   };
-}
+};
