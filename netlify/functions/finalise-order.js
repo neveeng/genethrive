@@ -34,11 +34,11 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import Stripe from 'stripe';
-import { crypto } from 'crypto';
-import { nodemailer } from 'nodemailer';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { shopifyFetch } from './shopify-token';
+const Stripe     = require('stripe');
+const crypto     = require('crypto');
+const nodemailer = require('nodemailer');
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const { shopifyFetch } = require('./shopify-token');
 
 // ── Env var validation ────────────────────────────────────────────────────────
 
@@ -169,7 +169,6 @@ async function generateOpsPdf(clientId, clientDetails, healthData, orderDate) {
   const healthRows = [
     ['Pregnant/breastfeeding', h.health_pregnant_breastfeeding || h['health_pregnant_breastfeeding']],
     ['Conditions',   h.health_conditions === 'Yes' ? (h.health_conditions_detail || 'Yes — no detail') : (h.health_conditions || 'No')],
-    ['Conditions2',   h.health_conditions2 || h['health_conditions2']],
     ['Medications',  h.health_medications === 'Yes' ? (h.health_medications_detail || 'Yes — no detail') : (h.health_medications || 'No')],
     ['Allergies',    h.health_allergies === 'Yes' ? (h.health_allergies_detail || 'Yes — no detail') : (h.health_allergies || 'No')],
     ['Gender',       h.health_gender],
@@ -228,7 +227,6 @@ async function generateLabPdf(clientId, healthData, orderDate) {
   const rows = [
     ['Pregnant/breastfeeding', hd.health_pregnant_breastfeeding],
     ['Conditions',   hd.health_conditions === 'Yes' ? (hd.health_conditions_detail || 'Yes') : (hd.health_conditions || 'No')],
-    ['Conditions2',   hd.health_conditions2],
     ['Medications',  hd.health_medications === 'Yes' ? (hd.health_medications_detail || 'Yes') : (hd.health_medications || 'No')],
     ['Allergies',    hd.health_allergies === 'Yes' ? (hd.health_allergies_detail || 'Yes') : (hd.health_allergies || 'No')],
     ['Gender',       hd.health_gender],
@@ -272,7 +270,7 @@ function createTransporter() {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-export async function handler (event) {
+exports.handler = async function (event) {
 
   const corsHeaders = {
     'Access-Control-Allow-Origin':  '*',
