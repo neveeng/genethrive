@@ -44,12 +44,31 @@ async function getShopifyToken() {
     }
   );
 
+  const rawText = await response.text();
+
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Shopify token request failed: ${response.status} — ${text}`);
+    console.error(`GeneThrive: Shopify token failed — status ${response.status}`);
+    console.error(`GeneThrive: Shopify token response — ${rawText}`);
+    console.error(`GeneThrive: SHOPIFY_SHOP = ${shop}`);
+    console.error(`GeneThrive: SHOPIFY_CLIENT_ID = ${clientId}`);
+    console.error(`GeneThrive: SHOPIFY_CLIENT_SECRET set = ${!!clientSecret}`);
+    throw new Error(`Shopify token request failed: ${response.status} — ${rawText}`);
   }
 
-  const { access_token, expires_in } = await response.json();
+  let tokenJson;
+  try {
+    tokenJson = JSON.parse(rawText);
+  } catch {
+    console.error('GeneThrive: Shopify token response not valid JSON —', rawText.slice(0, 200));
+    throw new Error('Shopify token response was not valid JSON');
+  }
+
+  const { access_token, expires_in } = tokenJson;
+
+  if (!access_token) {
+    console.error('GeneThrive: Token response missing access_token —', JSON.stringify(tokenJson));
+    throw new Error('Shopify token response missing access_token');
+  }
   _token          = access_token;
   _tokenExpiresAt = Date.now() + expires_in * 1000;
 
