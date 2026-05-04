@@ -14,8 +14,8 @@
  *   4. Copy the token from the page and save it to Netlify env vars
  *
  * ENVIRONMENT VARIABLES:
- *   SHOPIFY_STORE_DOMAIN  = genethrive.myshopify.com
- *   SHOPIFY_CLIENT_ID     = 5481b1429dd4cafe51f8a7c89defbf4c
+ *   SHOPIFY_STORE_DOMAIN  = ??
+ *   SHOPIFY_CLIENT_ID     = ??
  *   SHOPIFY_CLIENT_SECRET = your-client-secret
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -40,6 +40,7 @@ exports.handler = async function (event) {
     };
   }
 
+  const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
   const clientId     = process.env.SHOPIFY_CLIENT_ID;
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
 
@@ -113,7 +114,7 @@ exports.handler = async function (event) {
               <li>Copy the token above</li>
               <li>Go to Netlify dashboard → Site configuration → Environment variables</li>
               <li>Add variable: <strong>SHOPIFY_ADMIN_TOKEN</strong> = the token above</li>
-              <li>Also add: <strong>SHOPIFY_STORE_DOMAIN</strong> = genethrive.myshopify.com</li>
+              <li>Also add: <strong>SHOPIFY_STORE_DOMAIN</strong> = ${storeDomain}</li>
               <li>Click Save → redeploy: <code>netlify deploy --prod</code></li>
               <li>You can now delete this auth-callback function — it's no longer needed</li>
             </ol>
