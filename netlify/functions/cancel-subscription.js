@@ -16,7 +16,7 @@
  *
  * ENVIRONMENT VARIABLES:
  *   STRIPE_SECRET_KEY      = sk_test_xxxx or sk_live_xxxx
- *   SHOPIFY_STORE_DOMAIN   = myshop
+ *   SHOPIFY_STORE_DOMAIN   = genethrive.myshopify.com
  *   SHOPIFY_ADMIN_TOKEN    = shpat_xxxx
  *   SMTP_HOST / PORT / USER / PASS
  *   EMAIL_FROM
@@ -171,9 +171,24 @@ exports.handler = async function (event) {
   }
 
   // Format the end date nicely
-  const periodEnd = new Date(updatedSubscription.current_period_end * 1000).toLocaleDateString('en-AU', {
-    day: '2-digit', month: 'long', year: 'numeric',
-  });
+  // During trial, use trial_end as the effective end date
+  // After trial, use current_period_end
+  const endTimestamp = updatedSubscription.trial_end || updatedSubscription.current_period_end;
+
+  console.log('GeneThrive cancel: trial_end =', updatedSubscription.trial_end);
+  console.log('GeneThrive cancel: current_period_end =', updatedSubscription.current_period_end);
+  console.log('GeneThrive cancel: using endTimestamp =', endTimestamp);
+
+  let periodEnd = 'your next billing date';
+  if (endTimestamp) {
+    try {
+      periodEnd = new Date(endTimestamp * 1000).toLocaleDateString('en-AU', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      });
+    } catch (err) {
+      console.error('GeneThrive cancel: Date formatting failed —', err.message);
+    }
+  }
 
   // 6. Tag the Shopify order
   try {

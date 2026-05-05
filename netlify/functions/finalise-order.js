@@ -610,6 +610,12 @@ exports.handler = async function (event) {
                 ${process.env.EMAIL_REPLY_TO}
               </a>
             </p>
+            <p style="font-size:12px;color:#7a7a74;margin-top:16px">
+              To cancel your subscription visit
+              <a href="https://${process.env.SHOPIFY_STORE_DOMAIN}/pages/cancel-subscription" style="color:#4a6741">
+                our cancellation page
+              </a>
+            </p>
           </div>
         </div>`,
       })
