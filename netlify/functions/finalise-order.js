@@ -201,7 +201,7 @@ async function generateOpsPdf(clientId, clientDetails, healthData, orderDate) {
   return pdfDoc.save();
 }
 
-async function generateLabPdf(clientId, healthData, orderDate) {
+async function generateLabPdf(clientId, clientDetails, healthData, orderDate) {
   const pdfDoc = await PDFDocument.create();
   const page   = pdfDoc.addPage([595, 842]);
   const fonts  = {
@@ -209,24 +209,38 @@ async function generateLabPdf(clientId, healthData, orderDate) {
     bold:    await pdfDoc.embedFont(StandardFonts.HelveticaBold),
   };
 
-  let y = drawHeader(page, fonts, 'DNA Test Order — Lab Copy', `${orderDate}  |  ANONYMISED — no client PII`);
+  let y = drawHeader(page, fonts, 'DNA Test Order — Nutripath Lab', `${orderDate}  |  CONFIDENTIAL`);
 
+  // Client ID block
   page.drawRectangle({ x: 40, y: y - 36, width: 515, height: 48, color: COLORS.cream });
   page.drawText('CLIENT ID', { x: 52, y: y - 14, size: 8, font: fonts.bold, color: COLORS.sage, characterSpacing: 1 });
   page.drawText(clientId, { x: 52, y: y - 30, size: 20, font: fonts.bold, color: COLORS.ink });
-  page.drawText('Use this ID on all correspondence. Do not add client name or address.', {
-    x: 240, y: y - 22, size: 8, font: fonts.regular, color: COLORS.soft,
-  });
   y -= 58;
 
   drawRule(page, y); y -= 20;
 
+  // Client details — full PII for kit dispatch
+  y = drawSection(page, fonts, y, 'Client Details — Ship DNA Kit To');
+  y -= 4;
+  y = drawRow(page, fonts, y, 'Full name',  clientDetails.name);
+  y = drawRow(page, fonts, y, 'Email',      clientDetails.email);
+  y = drawRow(page, fonts, y, 'Phone',      clientDetails.phone);
+  y = drawRow(page, fonts, y, 'Address',    clientDetails.address);
+  y = drawRow(page, fonts, y, 'Suburb',     clientDetails.suburb);
+  y = drawRow(page, fonts, y, 'State',      clientDetails.state);
+  y = drawRow(page, fonts, y, 'Postcode',   clientDetails.postcode);
+  y = drawRow(page, fonts, y, 'Country',    'Australia');
+
+  y -= 10; drawRule(page, y); y -= 20;
+
+  // Health profile
   y = drawSection(page, fonts, y, 'Health Profile');
   y -= 4;
   const hd = healthData || {};
   const rows = [
     ['Pregnant/breastfeeding', hd.health_pregnant_breastfeeding],
     ['Conditions',   hd.health_conditions === 'Yes' ? (hd.health_conditions_detail || 'Yes') : (hd.health_conditions || 'No')],
+    ['Haematological', hd.health_conditions2],
     ['Medications',  hd.health_medications === 'Yes' ? (hd.health_medications_detail || 'Yes') : (hd.health_medications || 'No')],
     ['Allergies',    hd.health_allergies === 'Yes' ? (hd.health_allergies_detail || 'Yes') : (hd.health_allergies || 'No')],
     ['Gender',       hd.health_gender],
@@ -239,21 +253,24 @@ async function generateLabPdf(clientId, healthData, orderDate) {
   }
 
   y -= 10; drawRule(page, y); y -= 20;
-  y = drawSection(page, fonts, y, 'Processing Instructions');
+
+  // Instructions
+  y = drawSection(page, fonts, y, 'Instructions');
   y -= 4;
   const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
   const instructions = [
-    '1.  Register this test kit using the Client ID above only.',
-    '2.  Do not record client name, email, or address in your system.',
-    '3.  Return results to GeneThrive referencing the Client ID only.',
-    `4.  POST results to: ${siteUrl}/.netlify/functions/dispatch-results`,
+    `1.  Ship the DNA mouth swab kit to the client address above.`,
+    `2.  Use Client ID ${clientId} on all kit labelling and correspondence.`,
+    `3.  Once results are ready, POST to GeneThrive using the Client ID only.`,
+    `4.  Results endpoint: ${siteUrl}/.netlify/functions/dispatch-results`,
+    `5.  Do not include client name or address in DNA result communications.`,
   ];
   for (const line of instructions) {
     page.drawText(line, { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
     y -= 16;
   }
 
-  drawFooter(page, fonts, `GeneThrive  |  Lab copy — anonymised  |  ${clientId}`);
+  drawFooter(page, fonts, `GeneThrive  |  Nutripath copy  |  ${clientId}  |  ${orderDate}`);
   return pdfDoc.save();
 }
 
@@ -302,6 +319,9 @@ exports.handler = async function (event) {
   } catch {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
+
+  const createAccount = body.createAccount || false;
+  const password       = body.password || null;
 
   if (!paymentIntentId || !clientDetails?.email) {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing paymentIntentId or clientDetails' }) };
@@ -485,13 +505,66 @@ exports.handler = async function (event) {
     console.error('GeneThrive: Shopify order creation failed —', err.message);
   }
 
+  // ── 5b. Create Shopify customer account (optional) ──────────────────────────
+  if (createAccount && password) {
+    try {
+      console.log(`GeneThrive: Creating Shopify account for ${clientDetails.email}`);
+      const nameParts = clientDetails.name.split(' ');
+      const firstName = nameParts[0];
+      const lastName  = nameParts.slice(1).join(' ') || '.';
+
+      const accountRes = await shopifyFetch('/admin/api/2024-01/customers.json', {
+        method: 'POST',
+        body: JSON.stringify({
+          customer: {
+            first_name:             firstName,
+            last_name:              lastName,
+            email:                  clientDetails.email,
+            phone:                  clientDetails.phone,
+            password:               password,
+            password_confirmation:  password,
+            send_email_welcome:     true,
+            tags:                   `client-id:${clientId}`,
+            addresses: [{
+              address1:   clientDetails.address,
+              city:       clientDetails.suburb,
+              province:   clientDetails.state,
+              zip:        clientDetails.postcode,
+              country:    'AU',
+              phone:      clientDetails.phone,
+              first_name: firstName,
+              last_name:  lastName,
+            }],
+          },
+        }),
+      });
+
+      const accountData = await accountRes.json();
+
+      if (!accountRes.ok) {
+        // Email already taken is common — not a fatal error
+        const errors = accountData.errors;
+        if (errors?.email) {
+          console.warn(`GeneThrive: Account creation skipped — email already exists: ${clientDetails.email}`);
+        } else {
+          console.error('GeneThrive: Account creation failed —', JSON.stringify(errors || accountData));
+        }
+      } else {
+        console.log(`GeneThrive: Shopify account created for ${clientDetails.email} — customer ID ${accountData.customer?.id}`);
+      }
+    } catch (err) {
+      console.error('GeneThrive: Account creation error —', err.message);
+      // Non-fatal — order still processes
+    }
+  }
+
   // ── 6. Generate PDFs ──────────────────────────────────────────────────────────
   let opsPdfBytes = null;
   let labPdfBytes = null;
   try {
     [opsPdfBytes, labPdfBytes] = await Promise.all([
       generateOpsPdf(clientId, clientDetails, healthData, orderDate),
-      generateLabPdf(clientId, healthData, orderDate),
+      generateLabPdf(clientId, clientDetails, healthData, orderDate),
     ]);
     console.log(`GeneThrive: PDFs generated for ${clientId}`);
   } catch (err) {
@@ -551,18 +624,33 @@ exports.handler = async function (event) {
           from:    process.env.EMAIL_FROM,
           to:      process.env.EMAIL_LAB,
           replyTo: process.env.EMAIL_REPLY_TO,
-          subject: `New DNA Test Order — ${clientId}`,
+          subject: `New DNA Test Order — ${clientId} — Action: Dispatch Mouth Swab Kit`,
           html: `<div style="font-family:sans-serif;color:#1c1c1a;max-width:520px">
             <div style="background:#4a6741;padding:20px 24px;border-radius:8px 8px 0 0">
               <span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
             </div>
             <div style="border:1px solid #d6cfc3;border-top:none;padding:24px;border-radius:0 0 8px 8px">
+              <p style="margin:0 0 16px;font-size:14px;color:#4a4a46">New DNA test order received. Please dispatch a mouth swab kit to the client.</p>
               <div style="background:#f7f4ee;border-radius:6px;padding:14px;margin-bottom:16px">
                 <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:4px">CLIENT ID</div>
                 <div style="font-size:20px;font-weight:700">${clientId}</div>
               </div>
-              <p style="font-size:13px;color:#4a4a46;margin:0 0 12px">Process using the Client ID only. Do not record personal details.</p>
-              <p style="font-size:13px;color:#7a7a74">See attached PDF for health profile and processing instructions.</p>
+              <div style="background:#e8eee7;border-radius:6px;padding:14px;margin-bottom:16px">
+                <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:8px">SHIP KIT TO</div>
+                <div style="font-size:13px;color:#1c1c1a;line-height:1.8">
+                  <strong>${clientDetails.name}</strong><br>
+                  ${clientDetails.address}, ${clientDetails.suburb} ${clientDetails.state} ${clientDetails.postcode}<br>
+                  ${clientDetails.phone}<br>
+                  ${clientDetails.email}
+                </div>
+              </div>
+              <p style="font-size:13px;font-weight:600;color:#1c1c1a;margin:0 0 8px">Important:</p>
+              <ul style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 12px;padding-left:18px">
+                <li>Label the kit with Client ID: <strong>${clientId}</strong></li>
+                <li>Return DNA results to GeneThrive using the Client ID only</li>
+                <li>Do not include client name or address in result communications</li>
+              </ul>
+              <p style="font-size:13px;color:#7a7a74">Full details and health profile in the attached PDF.</p>
             </div>
           </div>`,
           attachments: [{
@@ -608,12 +696,6 @@ exports.handler = async function (event) {
               Questions? Contact us at
               <a href="mailto:${process.env.EMAIL_REPLY_TO}" style="color:#4a6741">
                 ${process.env.EMAIL_REPLY_TO}
-              </a>
-            </p>
-            <p style="font-size:12px;color:#7a7a74;margin-top:16px">
-              To cancel your subscription visit
-              <a href="https://${process.env.SHOPIFY_STORE_DOMAIN}/pages/cancel-subscription" style="color:#4a6741">
-                our cancellation page
               </a>
             </p>
           </div>
