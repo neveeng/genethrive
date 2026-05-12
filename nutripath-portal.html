@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeneThrive — Nutripath Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F4EE; --warm: #EDE8DF; --sage: #4A6741; --sage-lt: #6B8F62;
+      --sage-pale: #E8EEE7; --ink: #1C1C1A; --ink-mid: #4A4A46; --ink-soft: #7A7A74;
+      --border: #D6CFC3; --radius: 10px; --shadow: 0 2px 16px rgba(28,28,26,0.07);
+      --green: #166534; --green-bg: #F0FDF4; --green-bdr: #BBF7D0;
+      --red: #B91C1C; --red-bg: #FEF2F2; --red-bdr: #FECACA;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+    /* Login */
+    #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    #portal-screen { display: none; flex-direction: column; min-height: 100vh; }
+
+    .login-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: var(--shadow); }
+    .login-logo { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sage); margin-bottom: 8px; }
+    .login-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--ink); margin-bottom: 4px; }
+    .login-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 28px; }
+
+    /* Header */
+    .gt-header { background: var(--sage); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .gt-brand { color: #fff; font-size: 15px; font-weight: 500; letter-spacing: 0.12em; }
+    .gt-badge { font-size: 11px; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); padding: 3px 12px; border-radius: 20px; }
+    .gt-logout { background: none; border: none; color: rgba(255,255,255,0.5); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .gt-logout:hover { color: #fff; }
+
+    /* Main */
+    .gt-main { flex: 1; max-width: 680px; margin: 0 auto; padding: 40px 20px 80px; width: 100%; }
+    .gt-page-title { font-family: 'DM Serif Display', serif; font-size: 26px; font-weight: 400; margin-bottom: 6px; }
+    .gt-page-sub { font-size: 14px; color: var(--ink-soft); margin-bottom: 32px; }
+
+    /* Card */
+    .gt-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 28px 32px; margin-bottom: 20px; box-shadow: var(--shadow); }
+    .gt-card-title { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sage); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--warm); }
+
+    /* Fields */
+    .gt-field { margin-bottom: 16px; }
+    .gt-field label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-mid); margin-bottom: 6px; }
+    .gt-field input, .gt-field textarea { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--cream); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); outline: none; transition: border-color 0.2s; }
+    .gt-field input:focus, .gt-field textarea:focus { border-color: var(--sage); background: #fff; }
+    .gt-field textarea { min-height: 80px; resize: vertical; }
+    .gt-field .hint { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
+
+    /* File upload */
+    .gt-upload { border: 2px dashed var(--border); border-radius: var(--radius); padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--cream); }
+    .gt-upload:hover, .gt-upload.dragover { border-color: var(--sage); background: var(--sage-pale); }
+    .gt-upload input { display: none; }
+    .gt-upload-icon { color: var(--ink-soft); margin-bottom: 10px; }
+    .gt-upload-text { font-size: 14px; color: var(--ink-mid); margin-bottom: 4px; }
+    .gt-upload-hint { font-size: 12px; color: var(--ink-soft); }
+    .gt-upload-selected { margin-top: 12px; font-size: 13px; color: var(--sage); font-weight: 500; }
+
+    /* Buttons */
+    .gt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
+    .gt-btn-primary { background: var(--sage); color: #fff; width: 100%; }
+    .gt-btn-primary:hover:not(:disabled) { background: var(--sage-lt); }
+    .gt-btn-primary:disabled { opacity: 0.6; pointer-events: none; }
+    .gt-btn-primary.loading::after { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 6px; }
+    .login-btn { width: 100%; padding: 12px; background: var(--ink); color: var(--cream); border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+    .login-btn:hover { background: var(--ink-mid); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Alerts */
+    .gt-alert { display: none; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-top: 14px; line-height: 1.5; }
+    .gt-alert.visible { display: block; }
+    .gt-alert.success { background: var(--green-bg); border: 1px solid var(--green-bdr); color: var(--green); }
+    .gt-alert.error { background: var(--red-bg); border: 1px solid var(--red-bdr); color: var(--red); }
+
+    /* Lookup result */
+    .gt-order-info { display: none; background: var(--sage-pale); border: 1px solid #c5d9c0; border-radius: var(--radius); padding: 14px 16px; margin-top: 12px; font-size: 13px; }
+    .gt-order-info.visible { display: block; }
+    .gt-order-row { display: flex; gap: 8px; margin-bottom: 4px; }
+    .gt-order-row:last-child { margin-bottom: 0; }
+    .gt-order-key { color: var(--ink-soft); min-width: 110px; }
+
+    /* Log */
+    .gt-log-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--warm); font-size: 13px; }
+    .gt-log-item:last-child { border-bottom: none; }
+    .gt-log-empty { font-size: 13px; color: var(--ink-soft); padding: 8px 0; }
+    .gt-tag { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: var(--green-bg); color: var(--green); }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">GeneThrive</div>
+    <div class="login-title">Nutripath Portal</div>
+    <div class="login-sub">Submit DNA results and manage payments</div>
+    <div class="gt-alert error" id="login-error"></div>
+    <div class="gt-field"><label>Email</label><input type="email" id="login-email" placeholder="lab@nutripath.com.au"></div>
+    <div class="gt-field"><label>Password</label><input type="password" id="login-password"></div>
+    <button class="login-btn" onclick="login()">Sign in</button>
+  </div>
+</div>
+
+<!-- PORTAL -->
+<div id="portal-screen">
+  <div class="gt-header">
+    <span class="gt-brand">GENETHRIVE</span>
+    <span class="gt-badge">Nutripath Portal</span>
+    <button class="gt-logout" onclick="logout()">Sign out</button>
+  </div>
+  <div class="gt-main">
+    <div class="gt-page-title">DNA Results Submission</div>
+    <div class="gt-page-sub">Upload DNA results for a client to trigger naturopath review and release your payment.</div>
+
+    <div class="gt-alert success" id="alert-success"></div>
+    <div class="gt-alert error"   id="alert-error"></div>
+
+    <div class="gt-card">
+      <div class="gt-card-title">Submit DNA results</div>
+
+      <!-- Client ID lookup -->
+      <div class="gt-field">
+        <label>Client ID</label>
+        <div style="display:flex;gap:10px">
+          <input type="text" id="client-id" placeholder="e.g. GT-1042-a3f9c2" style="flex:1" oninput="clearOrderInfo()">
+          <button class="gt-btn" style="background:var(--warm);border:1.5px solid var(--border);color:var(--ink-mid);white-space:nowrap" onclick="lookupOrder()">Look up</button>
+        </div>
+        <div class="gt-order-info" id="order-info">
+          <div class="gt-order-row"><span class="gt-order-key">Order #</span><span id="info-order"></span></div>
+          <div class="gt-order-row"><span class="gt-order-key">Client email</span><span id="info-email"></span></div>
+          <div class="gt-order-row"><span class="gt-order-key">Status</span><span id="info-status"></span></div>
+        </div>
+      </div>
+
+      <!-- PDF upload -->
+      <div class="gt-field">
+        <label>DNA Results PDF</label>
+        <div class="gt-upload" id="upload-zone" onclick="document.getElementById('pdf-input').click()" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="this.classList.remove('dragover')">
+          <input type="file" id="pdf-input" accept=".pdf" onchange="handleFileSelect(this.files[0])">
+          <div class="gt-upload-icon">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 4v16M8 12l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 24h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <div class="gt-upload-text">Click to upload or drag and drop</div>
+          <div class="gt-upload-hint">PDF files only</div>
+          <div class="gt-upload-selected" id="file-name"></div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="gt-field">
+        <label>Additional notes <span style="font-weight:400;color:var(--ink-soft)">(optional)</span></label>
+        <textarea id="notes" placeholder="Any additional observations or notes for the naturopath..."></textarea>
+      </div>
+
+      <button class="gt-btn gt-btn-primary" id="submit-btn" onclick="submitResults()">
+        Submit results &amp; release payment
+      </button>
+    </div>
+
+    <!-- Session log -->
+    <div class="gt-card">
+      <div class="gt-card-title">Recent submissions this session</div>
+      <div id="submission-log"><div class="gt-log-empty">No submissions yet.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const NETLIFY_URL = 'https://genethrive.netlify.app';
+  let _token     = null;
+  let _pdfBase64 = null;
+  const log      = [];
+
+  // ── Auth ─────────────────────────────────────────────────────────────────
+  async function login() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl    = document.getElementById('login-error');
+    errEl.classList.remove('visible');
+
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/partner-auth`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (data.partner !== 'nutripath') throw new Error('Invalid credentials for this portal');
+      _token = data.token;
+      sessionStorage.setItem('nutripath_token', _token);
+      showPortal();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.add('visible');
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('nutripath_token');
+    _token = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('portal-screen').style.display = 'none';
+  }
+
+  function showPortal() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('portal-screen').style.display = 'flex';
+  }
+
+  if (sessionStorage.getItem('nutripath_token')) {
+    _token = sessionStorage.getItem('nutripath_token');
+    showPortal();
+  }
+
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+  // ── Order lookup ──────────────────────────────────────────────────────────
+  async function lookupOrder() {
+    const clientId = document.getElementById('client-id').value.trim();
+    if (!clientId) return;
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/lookup-order?clientId=${encodeURIComponent(clientId)}`);
+      const data = await res.json();
+      if (!res.ok || !data.order) throw new Error(data.error || 'Not found');
+      document.getElementById('info-order').textContent  = `#${data.order.order_number}`;
+      document.getElementById('info-email').textContent  = data.order.email;
+      document.getElementById('info-status').textContent = data.order.tags?.includes('dna-results-received') ? '⚠ Results already submitted' : '✓ Ready for submission';
+      document.getElementById('order-info').classList.add('visible');
+    } catch (err) {
+      showError(`Could not find order: ${err.message}`);
+    }
+  }
+
+  function clearOrderInfo() { document.getElementById('order-info').classList.remove('visible'); }
+
+  // ── File handling ─────────────────────────────────────────────────────────
+  function handleFileSelect(file) {
+    if (!file || file.type !== 'application/pdf') { showError('Please select a PDF file.'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      _pdfBase64 = e.target.result.split(',')[1];
+      document.getElementById('file-name').textContent = `Selected: ${file.name}`;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+  function handleDrop(e) {
+    e.preventDefault(); e.currentTarget.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    handleFileSelect(file);
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+  async function submitResults() {
+    const clientId = document.getElementById('client-id').value.trim();
+    const notes    = document.getElementById('notes').value.trim();
+    const btn      = document.getElementById('submit-btn');
+
+    if (!clientId)   { showError('Please enter a Client ID.'); return; }
+    if (!_pdfBase64) { showError('Please upload the DNA results PDF.'); return; }
+
+    btn.classList.add('loading');
+    btn.disabled    = true;
+    btn.textContent = 'Submitting...';
+    clearAlerts();
+
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/nutripath-submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Partner-Token': _token },
+        body: JSON.stringify({ clientId, pdfBase64: _pdfBase64, notes }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Submission failed');
+
+      showSuccess(`Results submitted for ${clientId}. Naturopath notified. $137.50 released to your account.`);
+      addLog(clientId);
+
+      // Reset form
+      document.getElementById('client-id').value = '';
+      document.getElementById('notes').value     = '';
+      document.getElementById('file-name').textContent = '';
+      document.getElementById('pdf-input').value  = '';
+      _pdfBase64 = null;
+      clearOrderInfo();
+
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled    = false;
+      btn.textContent = 'Submit results & release payment';
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function addLog(clientId) {
+    log.unshift({ clientId, time: new Date() });
+    const el = document.getElementById('submission-log');
+    el.innerHTML = log.map(i => `
+      <div class="gt-log-item">
+        <span style="font-weight:500">${i.clientId}</span>
+        <span style="color:var(--ink-soft);font-size:12px">${i.time.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="gt-tag">Submitted</span>
+      </div>`).join('');
+  }
+
+  function showSuccess(msg) {
+    const el = document.getElementById('alert-success');
+    el.textContent = msg; el.classList.add('visible');
+    document.getElementById('alert-error').classList.remove('visible');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => el.classList.remove('visible'), 10000);
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('alert-error');
+    el.textContent = msg; el.classList.add('visible');
+    document.getElementById('alert-success').classList.remove('visible');
+  }
+
+  function clearAlerts() {
+    document.getElementById('alert-success').classList.remove('visible');
+    document.getElementById('alert-error').classList.remove('visible');
+  }
+</script>
+</body>
+</html>

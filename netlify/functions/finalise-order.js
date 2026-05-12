@@ -350,19 +350,21 @@ exports.handler = async function (event) {
   console.log(`GeneThrive: Finalising order — Client ID ${clientId}`);
   console.log(`GeneThrive: Customer ID — ${customerId}`);
 
-  // ── 2. Transfer $275 to Nutripath ────────────────────────────────────────────
+  // ── 2. Transfer $137.50 to Nutripath (first half — for kit dispatch) ─────────
+  // Second half ($137.50) is released by nutripath-submit.js when DNA results
+  // are uploaded via the Nutripath portal.
   if (process.env.STRIPE_ACCOUNT_NUTRIPATH) {
     try {
       const t = await stripe.transfers.create({
-        amount:      27500,
+        amount:      13750, // $137.50 — first half only
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_NUTRIPATH,
-        description: `GeneThrive ${clientId} — DNA lab payment`,
-        metadata:    { clientId },
+        description: `GeneThrive ${clientId} — DNA lab payment (1st half — kit dispatch)`,
+        metadata:    { clientId, stage: 'kit-dispatch' },
       });
-      console.log(`GeneThrive: $275 transferred to Nutripath — transfer ID ${t.id}`);
+      console.log(`GeneThrive: $137.50 transferred to Nutripath (1st half) — transfer ID ${t.id}`);
     } catch (err) {
-      console.error('GeneThrive: Nutripath transfer failed —', err.message);
+      console.error('GeneThrive: Nutripath 1st transfer failed —', err.message);
       console.error('GeneThrive: STRIPE_ACCOUNT_NUTRIPATH value —', process.env.STRIPE_ACCOUNT_NUTRIPATH);
     }
   } else {
