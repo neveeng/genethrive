@@ -310,18 +310,17 @@ exports.handler = async function (event) {
   const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
   // Parse request
-  let paymentIntentId, clientDetails, healthData;
+  let paymentIntentId, clientDetails, healthData, createAccount, password;
   try {
-    const body      = JSON.parse(event.body);
+    const body  = JSON.parse(event.body);
     paymentIntentId = body.paymentIntentId;
     clientDetails   = body.clientDetails;
     healthData      = body.healthData || {};
+    createAccount   = body.createAccount || false;
+    password        = body.password || null;
   } catch {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
-
-  const createAccount = body.createAccount || false;
-  const password       = body.password || null;
 
   if (!paymentIntentId || !clientDetails?.email) {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing paymentIntentId or clientDetails' }) };
