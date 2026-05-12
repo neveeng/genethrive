@@ -120,7 +120,7 @@ exports.handler = async function (event) {
     try {
       const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
       const transfer = await stripe.transfers.create({
-        amount:      6500,
+        amount:      parseInt(process.env.PRICE_NATUROPATH_CENTS || "6500"),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_NATUROPATH,
         description: `GeneThrive ${clientId} — CIL consultation fee`,

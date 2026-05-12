@@ -121,7 +121,7 @@ exports.handler = async function (event) {
     try {
       const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
       const transfer = await stripe.transfers.create({
-        amount:      13750, // $137.50 in cents
+        amount:      parseInt(process.env.PRICE_NUTRIPATH_2_CENTS || "13750"),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_NUTRIPATH,
         description: `GeneThrive ${clientId} — DNA results payment (2nd half)`,

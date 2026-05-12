@@ -356,7 +356,7 @@ exports.handler = async function (event) {
   if (process.env.STRIPE_ACCOUNT_NUTRIPATH) {
     try {
       const t = await stripe.transfers.create({
-        amount:      13750, // $137.50 — first half only
+        amount:      parseInt(process.env.PRICE_NUTRIPATH_1_CENTS || "13750"),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_NUTRIPATH,
         description: `GeneThrive ${clientId} — DNA lab payment (1st half — kit dispatch)`,
@@ -375,7 +375,7 @@ exports.handler = async function (event) {
   if (process.env.STRIPE_ACCOUNT_OPS) {
     try {
       const t = await stripe.transfers.create({
-        amount:      9500,
+        amount:      parseInt(process.env.PRICE_OPS_CENTS || "9500"),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_OPS,
         description: `GeneThrive ${clientId} — ops fee`,

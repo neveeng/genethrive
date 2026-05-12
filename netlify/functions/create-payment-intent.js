@@ -86,7 +86,7 @@ exports.handler = async function (event) {
     // setup_future_usage: 'off_session' tells Stripe to save the card
     // for future charges (the $200/month subscription)
     const paymentIntent = await stripe.paymentIntents.create({
-      amount:   57500, // in cents
+      amount:   parseInt(process.env.PRICE_INITIAL_CENTS || "57500"), // override via PRICE_INITIAL_CENTS env var
       currency: 'aud',
       customer: customer.id,
       setup_future_usage: 'off_session',

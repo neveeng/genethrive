@@ -120,7 +120,7 @@ exports.handler = async function (event) {
     try {
       const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
       const transfer = await stripe.transfers.create({
-        amount:      14000,
+        amount:      parseInt(process.env.PRICE_PHARMACIST_CENTS || "14000"),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_PHARMACIST,
         description: `GeneThrive ${clientId} — compounding and dispatch fee`,
