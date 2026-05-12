@@ -16,7 +16,7 @@
  *
  * ENVIRONMENT VARIABLES:
  *   STRIPE_SECRET_KEY      = sk_test_xxxx or sk_live_xxxx
- *   SHOPIFY_STORE_DOMAIN   = genethrive.myshopify.com
+ *   SHOPIFY_STORE_DOMAIN   = yourstore.myshopify.com
  *   SHOPIFY_ADMIN_TOKEN    = shpat_xxxx
  *   SMTP_HOST / PORT / USER / PASS
  *   EMAIL_FROM
