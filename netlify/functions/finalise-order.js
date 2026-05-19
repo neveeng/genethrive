@@ -257,12 +257,12 @@ async function generateLabPdf(clientId, clientDetails, healthData, orderDate) {
   // Instructions
   y = drawSection(page, fonts, y, 'Instructions');
   y -= 4;
-  const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
+  const siteUrl = (process.env.SITE_URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
   const instructions = [
     `1.  Ship the DNA mouth swab kit to the client address above.`,
     `2.  Use Client ID ${clientId} on all kit labelling and correspondence.`,
     `3.  Once results are ready, POST to GeneThrive using the Client ID only.`,
-    `4.  Results endpoint: ${siteUrl}/.netlify/functions/dispatch-results`,
+    `4.  Results endpoint: ${siteUrl}/nutripath-portal.html`,
     `5.  Do not include client name or address in DNA result communications.`,
   ];
   for (const line of instructions) {
