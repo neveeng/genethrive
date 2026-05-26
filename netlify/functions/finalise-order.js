@@ -506,57 +506,76 @@ exports.handler = async function (event) {
     console.error('GeneThrive: Shopify order creation failed —', err.message);
   }
 
-  // ── 5b. Create Shopify customer account (optional) ──────────────────────────
-  if (createAccount && password) {
-    try {
-      console.log(`GeneThrive: Creating Shopify account for ${clientDetails.email}`);
-      const nameParts = clientDetails.name.split(' ');
-      const firstName = nameParts[0];
-      const lastName  = nameParts.slice(1).join(' ') || '.';
+  // ── 5b. Create Shopify customer account ─────────────────────────────────────
+  // Always create a Shopify customer record for every order.
+  // We use send_email_invite: true so Shopify sends an activation email —
+  // the client clicks the link to set their password. No password needed here.
+  try {
+    console.log(`GeneThrive: Creating Shopify customer for ${clientDetails.email}`);
+    const nameParts = clientDetails.name.split(' ');
+    const firstName = nameParts[0];
+    const lastName  = nameParts.slice(1).join(' ') || '.';
 
-      const accountRes = await shopifyFetch('/admin/api/2024-01/customers.json', {
-        method: 'POST',
-        body: JSON.stringify({
-          customer: {
-            first_name:             firstName,
-            last_name:              lastName,
-            email:                  clientDetails.email,
-            phone:                  clientDetails.phone,
-            password:               password,
-            password_confirmation:  password,
-            send_email_welcome:     true,
-            tags:                   `client-id:${clientId}`,
-            addresses: [{
-              address1:   clientDetails.address,
-              city:       clientDetails.suburb,
-              province:   clientDetails.state,
-              zip:        clientDetails.postcode,
-              country:    'AU',
-              phone:      clientDetails.phone,
-              first_name: firstName,
-              last_name:  lastName,
-            }],
-          },
-        }),
-      });
+    const accountRes = await shopifyFetch('/admin/api/2024-01/customers.json', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer: {
+          first_name:         firstName,
+          last_name:          lastName,
+          email:              clientDetails.email,
+          phone:              clientDetails.phone,
+          send_email_invite:  false, // We send our own confirmation — client activates via /account/register
+          send_email_welcome: false,
+          tags:               `client-id:${clientId},genethrive-member`,
+          note:               `Client ID: ${clientId} | Stripe PI: ${paymentIntentId}`,
+          addresses: [{
+            address1:   clientDetails.address,
+            city:       clientDetails.suburb,
+            province:   clientDetails.state,
+            zip:        clientDetails.postcode,
+            country:    'AU',
+            phone:      clientDetails.phone,
+            first_name: firstName,
+            last_name:  lastName,
+            default:    true,
+          }],
+        },
+      }),
+    });
 
-      const accountData = await accountRes.json();
+    const accountData = await accountRes.json();
 
-      if (!accountRes.ok) {
-        // Email already taken is common — not a fatal error
-        const errors = accountData.errors;
-        if (errors?.email) {
-          console.warn(`GeneThrive: Account creation skipped — email already exists: ${clientDetails.email}`);
-        } else {
-          console.error('GeneThrive: Account creation failed —', JSON.stringify(errors || accountData));
+    if (!accountRes.ok) {
+      const errors = accountData.errors;
+      if (errors?.email) {
+        // Email already exists — update existing customer with client ID tag
+        console.warn(`GeneThrive: Customer already exists for ${clientDetails.email} — updating tags`);
+        const existingRes = await shopifyFetch(
+          `/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(clientDetails.email)}&limit=1`
+        );
+        const existingData = await existingRes.json();
+        const existing     = existingData.customers?.[0];
+        if (existing) {
+          const existingTags = existing.tags ? existing.tags.split(', ') : [];
+          if (!existingTags.includes(`client-id:${clientId}`)) {
+            existingTags.push(`client-id:${clientId}`);
+            await shopifyFetch(`/admin/api/2024-01/customers/${existing.id}.json`, {
+              method: 'PUT',
+              body:   JSON.stringify({ customer: { id: existing.id, tags: existingTags.join(', ') } }),
+            });
+            console.log(`GeneThrive: Existing customer ${existing.id} updated with client ID tag`);
+          }
         }
       } else {
-        console.log(`GeneThrive: Shopify account created for ${clientDetails.email} — customer ID ${accountData.customer?.id}`);
+        console.error('GeneThrive: Customer creation failed —', JSON.stringify(errors || accountData));
       }
-    } catch (err) {
-      console.error('GeneThrive: Account creation error —', err.message);
-      // Non-fatal — order still processes
+    } else {
+      const customerId = accountData.customer?.id;
+      console.log(`GeneThrive: Shopify customer created — ID ${customerId} for ${clientDetails.email}`);
     }
+  } catch (err) {
+    console.error('GeneThrive: Customer creation error —', err.message);
+    // Non-fatal — order still processes
   }
 
   // ── 6. Generate PDFs ──────────────────────────────────────────────────────────
