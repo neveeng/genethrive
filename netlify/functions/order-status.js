@@ -37,12 +37,12 @@ exports.handler = async function (event) {
     };
   }
 
-  // Basic format check — must start with GT-
+  // Basic format check — must contain GT- (case-insensitive)
   if (!clientId.toUpperCase().startsWith('GT-')) {
     return {
       statusCode: 400,
       headers: corsHeaders,
-      body: JSON.stringify({ error: 'Invalid reference number format' }),
+      body: JSON.stringify({ error: 'Reference numbers start with GT- (e.g. GT-1234-abc123)' }),
     };
   }
 
@@ -50,7 +50,7 @@ exports.handler = async function (event) {
     // Fetch only the SLA/logistics columns — NO health data columns
     const res = await fetch(
       `${process.env.SUPABASE_URL}/rest/v1/order_sla` +
-      `?client_id=eq.${encodeURIComponent(clientId)}` +
+      `?client_id=ilike.${encodeURIComponent(clientId)}` +
       `&select=current_stage,stage_entered_at,payment_received_at,health_profile_submitted_at,` +
       `kit_dispatched_at,swab_returned_at,dna_results_received_at,barbara_reviewed_at,` +
       `supplement_list_sent_at,tsi_shipped_at` +
