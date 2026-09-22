@@ -614,7 +614,7 @@ exports.handler = async function (event) {
   //   - Ops email: status notification only — NO health content, NO full details
   //   - NutriPath is notified AFTER health profile is submitted (via submit-health-profile.js)
   const siteUrl   = (process.env.SITE_URL || process.env.URL ).replace(/\/$/, '');
-  const storeUrl  = `https://${process.env.SHOPIFY_STORE_DOMAIN || 'genethrive.myshopify.com'}`;
+  const storeUrl  = `https://${process.env.SHOPIFY_STORE_DOMAIN}`;
   const healthUrl = `${storeUrl}/pages/health-profile?id=${encodeURIComponent(clientId)}`;
 
   try {
