@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeneThrive — TSI Status</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F4EE; --warm: #EDE8DF;
+      --amber-dark: #b45309; --amber-bg: #FFF7ED; --amber-bdr: #FED7AA;
+      --ink: #1C1C1A; --ink-mid: #4A4A46; --ink-soft: #7A7A74;
+      --border: #D6CFC3; --radius: 10px; --shadow: 0 2px 16px rgba(28,28,26,0.07);
+      --green: #166534; --green-bg: #F0FDF4; --green-bdr: #BBF7D0;
+      --red: #B91C1C; --red-bg: #FEF2F2; --red-bdr: #FECACA;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+    #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    #portal-screen { display: none; flex-direction: column; min-height: 100vh; }
+    .login-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; box-shadow: var(--shadow); }
+    .login-logo { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber-dark); margin-bottom: 8px; }
+    .login-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--ink); margin-bottom: 4px; }
+    .login-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 28px; }
+    .gt-field { margin-bottom: 16px; }
+    .gt-field label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-mid); margin-bottom: 6px; }
+    .gt-field input, .gt-field textarea { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--cream); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); outline: none; transition: border-color 0.2s; }
+    .gt-field input:focus, .gt-field textarea:focus { border-color: var(--amber-dark); background: #fff; }
+    .gt-header { background: var(--amber-dark); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .gt-brand { color: #fff; font-size: 15px; font-weight: 500; letter-spacing: 0.12em; }
+    .gt-badge { font-size: 11px; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); padding: 3px 12px; border-radius: 20px; }
+    .gt-logout { background: none; border: none; color: rgba(255,255,255,0.5); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
+    .gt-logout:hover { color: #fff; }
+    .gt-main { flex: 1; max-width: 560px; margin: 0 auto; padding: 40px 20px 80px; width: 100%; }
+    .gt-page-title { font-family: 'DM Serif Display', serif; font-size: 26px; font-weight: 400; margin-bottom: 6px; }
+    .gt-page-sub { font-size: 14px; color: var(--ink-soft); margin-bottom: 32px; }
+    .gt-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 28px 32px; margin-bottom: 20px; box-shadow: var(--shadow); }
+    .gt-card-title { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber-dark); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--warm); }
+    .gt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px 24px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; margin-bottom: 10px; }
+    .gt-btn-amber { background: var(--amber-dark); color: #fff; }
+    .gt-btn-amber:hover:not(:disabled) { background: #92400e; }
+    .gt-btn-amber:disabled { opacity: 0.6; pointer-events: none; }
+    .login-btn { width: 100%; padding: 12px; background: var(--ink); color: #fff; border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; }
+    .gt-alert { display: none; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-top: 14px; }
+    .gt-alert.visible { display: block; }
+    .gt-alert.success { background: var(--green-bg); border: 1px solid var(--green-bdr); color: var(--green); }
+    .gt-alert.error { background: var(--red-bg); border: 1px solid var(--red-bdr); color: var(--red); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading::after { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 8px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">GeneThrive</div>
+    <div class="login-title">TSI Compounding Portal</div>
+    <div class="login-sub">Report script status and vitamin dispatch</div>
+    <div class="gt-alert error" id="login-error"></div>
+    <div class="gt-field"><label>Email</label><input type="email" id="login-email" placeholder="compounding@tsi.com.au"></div>
+    <div class="gt-field"><label>Password</label><input type="password" id="login-password"></div>
+    <button class="login-btn" onclick="login()">Sign in</button>
+  </div>
+</div>
+
+<div id="portal-screen">
+  <div class="gt-header">
+    <span class="gt-brand">GENETHRIVE</span>
+    <span class="gt-badge">TSI — Compounding</span>
+    <button class="gt-logout" onclick="logout()">Sign out</button>
+  </div>
+  <div class="gt-main">
+    <div class="gt-page-title">Compounding status</div>
+    <div class="gt-page-sub">Confirm when you open the compounding script and when vitamins are shipped. The client will be notified automatically.</div>
+
+    <div class="gt-alert success" id="alert-success"></div>
+    <div class="gt-alert error"   id="alert-error"></div>
+
+    <div class="gt-card">
+      <div class="gt-card-title">Report a status update</div>
+
+      <div class="gt-field">
+        <label>Client ID</label>
+        <input type="text" id="client-id" placeholder="e.g. GT-1042-a3f9c2">
+      </div>
+
+      <div class="gt-field">
+        <label>Tracking number <span style="font-weight:400;color:var(--ink-soft)">(for shipped status)</span></label>
+        <input type="text" id="tracking" placeholder="e.g. 7X123456789">
+      </div>
+
+      <div class="gt-field">
+        <label>Notes for client <span style="font-weight:400;color:var(--ink-soft)">(optional)</span></label>
+        <textarea id="notes" rows="2" placeholder="Storage instructions, dosage notes..."></textarea>
+      </div>
+
+      <button class="gt-btn" style="background:var(--warm);border:1.5px solid var(--border);color:var(--ink-mid)" id="btn-script" onclick="submitStatus('script_opened', 'btn-script')">
+        ✓ Compounding script opened — 72h clock starts
+      </button>
+
+      <button class="gt-btn gt-btn-amber" id="btn-shipped" onclick="submitStatus('vitamins_shipped', 'btn-shipped')">
+        ✓ Vitamins shipped to client
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const NETLIFY_URL = 'https://genethrive.netlify.app';
+  let _token = null;
+
+  async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const pw    = document.getElementById('login-password').value;
+    const err   = document.getElementById('login-error');
+    err.classList.remove('visible');
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/partner-auth`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pw }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (data.partner !== 'tsi') throw new Error('Invalid credentials for this portal');
+      _token = data.token;
+      sessionStorage.setItem('tsi_token', _token);
+      showPortal();
+    } catch (e) { err.textContent = e.message; err.classList.add('visible'); }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('tsi_token'); _token = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('portal-screen').style.display = 'none';
+  }
+
+  function showPortal() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('portal-screen').style.display = 'flex';
+  }
+
+  if (sessionStorage.getItem('tsi_token')) {
+    _token = sessionStorage.getItem('tsi_token'); showPortal();
+  }
+
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+  async function submitStatus(statusEvent, btnId) {
+    const clientId      = document.getElementById('client-id').value.trim();
+    const trackingNumber = document.getElementById('tracking').value.trim();
+    const notes         = document.getElementById('notes').value.trim();
+    const btn           = document.getElementById(btnId);
+    const sEl           = document.getElementById('alert-success');
+    const eEl           = document.getElementById('alert-error');
+    sEl.classList.remove('visible'); eEl.classList.remove('visible');
+
+    if (!clientId) { eEl.textContent = 'Please enter a Client ID.'; eEl.classList.add('visible'); return; }
+
+    btn.classList.add('loading'); btn.disabled = true;
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/partner-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Partner-Token': _token },
+        body: JSON.stringify({ clientId, statusEvent, notes, trackingNumber }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Submission failed');
+      sEl.textContent = `✓ ${statusEvent === 'script_opened' ? 'Script opened' : 'Vitamins shipped'} recorded for ${clientId}. Client notified.`;
+      sEl.classList.add('visible');
+      document.getElementById('client-id').value = '';
+      document.getElementById('tracking').value  = '';
+      document.getElementById('notes').value     = '';
+    } catch (e) { eEl.textContent = e.message; eEl.classList.add('visible'); }
+    finally { btn.classList.remove('loading'); btn.disabled = false; }
+  }
+</script>
+</body>
+</html>

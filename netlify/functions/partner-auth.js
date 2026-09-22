@@ -14,6 +14,8 @@
  *   NATUROPATH_PASSWORD = naturopath-secure-password
  *   PHARMACIST_EMAIL    = compounding@pharmacy.com.au
  *   PHARMACIST_PASSWORD = pharmacist-secure-password
+ *   TSI_EMAIL           = orders@tsi.com.au
+ *   TSI_PASSWORD        = tsi-secure-password
  *   PARTNER_TOKEN_SECRET = a-long-random-string-for-signing-tokens
  *
  * Generate PARTNER_TOKEN_SECRET:
@@ -82,6 +84,7 @@ exports.handler = async function (event) {
     { key: 'nutripath',  email: process.env.NUTRIPATH_EMAIL,    password: process.env.NUTRIPATH_PASSWORD },
     { key: 'naturopath', email: process.env.NATUROPATH_EMAIL,   password: process.env.NATUROPATH_PASSWORD },
     { key: 'pharmacist', email: process.env.PHARMACIST_EMAIL,   password: process.env.PHARMACIST_PASSWORD },
+    { key: 'tsi',        email: process.env.TSI_EMAIL,          password: process.env.TSI_PASSWORD },
   ];
 
   const match = partners.find(p =>

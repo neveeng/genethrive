@@ -19,6 +19,7 @@ const crypto     = require('crypto');
 const Stripe     = require('stripe');
 const nodemailer = require('nodemailer');
 const { shopifyFetch } = require('./shopify-token');
+const { advanceStage } = require('./sla-stage');
 
 function verifyToken(token) {
   try {
@@ -112,10 +113,33 @@ exports.handler = async function (event) {
     };
   }
 
-  const orderDate   = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
-  const firstName   = order.shipping_address?.first_name || 'there';
+  const now       = new Date().toISOString();
+  const orderDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+  const firstName = order.shipping_address?.first_name || 'there';
 
-  // 4. Release pharmacist payment ($140)
+  // 4. Stamp order_sla + advance SLA stage to 'shipped' (non-fatal)
+  try {
+    const supabaseRes = await fetch(
+      `${process.env.SUPABASE_URL}/rest/v1/order_sla?client_id=eq.${encodeURIComponent(clientId)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type':  'application/json',
+          'apikey':        process.env.SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          'Prefer':        'return=minimal',
+        },
+        body: JSON.stringify({ tsi_shipped_at: now }),
+      }
+    );
+    if (!supabaseRes.ok) throw new Error(`Supabase PATCH failed (${supabaseRes.status})`);
+    await advanceStage(clientId, 'shipped');
+    console.log(`GeneThrive: order_sla tsi_shipped_at stamped for ${clientId}`);
+  } catch (err) {
+    console.error('GeneThrive: order_sla update failed (non-fatal) —', err.message);
+  }
+
+  // 5. Release pharmacist payment ($140)
   if (process.env.STRIPE_ACCOUNT_PHARMACIST && process.env.STRIPE_SECRET_KEY) {
     try {
       const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -132,7 +156,7 @@ exports.handler = async function (event) {
     }
   }
 
-  // 5. Send emails
+  // 6. Send emails
   const transporter = createTransporter();
 
   try {
@@ -228,7 +252,7 @@ exports.handler = async function (event) {
     console.error('GeneThrive: Email sending failed —', err.message);
   }
 
-  // 6. Tag Shopify order
+  // 7. Tag Shopify order
   try {
     const existingTags = order.tags ? order.tags.split(', ') : [];
     existingTags.push('vitamins-dispatched', 'pharmacist-paid');

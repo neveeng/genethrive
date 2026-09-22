@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeneThrive — Barbara's Engine</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F4EE; --warm: #EDE8DF;
+      --sage: #4A6741; --sage-lt: #6B8F62; --sage-pale: #E8EEE7; --sage-mid: #3A5332;
+      --ink: #1C1C1A; --ink-mid: #4A4A46; --ink-soft: #7A7A74;
+      --border: #D6CFC3; --radius: 10px; --shadow: 0 2px 16px rgba(28,28,26,0.07);
+      --green: #166534; --green-bg: #F0FDF4; --green-bdr: #BBF7D0;
+      --red: #B91C1C; --red-bg: #FEF2F2; --red-bdr: #FECACA;
+      --blue: #1d4ed8; --blue-bg: #EFF6FF; --blue-bdr: #BFDBFE;
+      --amber: #92400E; --amber-bg: #FFF7ED; --amber-bdr: #FED7AA;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+    /* ── Login ── */
+    #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    #engine-screen { display: none; flex-direction: column; min-height: 100vh; }
+
+    .login-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; box-shadow: var(--shadow); }
+    .login-logo { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sage); margin-bottom: 8px; }
+    .login-title { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--ink); margin-bottom: 4px; }
+    .login-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 28px; line-height: 1.5; }
+    .login-field { margin-bottom: 16px; }
+    .login-field label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-mid); margin-bottom: 6px; }
+    .login-field input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); background: var(--cream); outline: none; transition: border-color 0.2s; }
+    .login-field input:focus { border-color: var(--sage); background: #fff; }
+    .login-btn { width: 100%; padding: 13px; background: var(--sage); color: #fff; border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .login-btn:hover { background: var(--sage-lt); }
+    .login-error { font-size: 13px; color: var(--red); margin-top: 12px; display: none; }
+    .login-error.visible { display: block; }
+
+    /* ── Header ── */
+    .gt-header { background: var(--sage-mid); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .gt-brand { color: #fff; font-size: 14px; font-weight: 500; letter-spacing: 0.12em; }
+    .gt-badge { font-size: 11px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.75); padding: 3px 12px; border-radius: 20px; margin-left: 12px; }
+    .gt-logout { background: none; border: none; color: rgba(255,255,255,0.4); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
+    .gt-logout:hover { color: #fff; }
+
+    /* ── Layout ── */
+    .gt-layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 48px); }
+    @media (max-width: 900px) { .gt-layout { grid-template-columns: 1fr; } }
+
+    /* ── Sidebar ── */
+    .gt-sidebar { background: #fff; border-right: 1px solid var(--border); padding: 24px; overflow-y: auto; }
+    .gt-sidebar-title { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 16px; }
+
+    .gt-client-item { padding: 12px 14px; border-radius: var(--radius); margin-bottom: 8px; cursor: pointer; border: 1.5px solid transparent; transition: all 0.15s; }
+    .gt-client-item:hover { background: var(--sage-pale); border-color: var(--sage); }
+    .gt-client-item.active { background: var(--sage-pale); border-color: var(--sage); }
+    .gt-client-item.reviewed { opacity: 0.5; }
+    .gt-client-id { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 3px; }
+    .gt-client-date { font-size: 11px; color: var(--ink-soft); }
+    .gt-client-badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 20px; margin-top: 5px; display: inline-block; }
+    .gt-client-badge.pending { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bdr); }
+    .gt-client-badge.done { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+
+    .gt-sidebar-empty { font-size: 13px; color: var(--ink-soft); padding: 8px 0; line-height: 1.6; }
+
+    /* ── Main Engine area ── */
+    .gt-engine { padding: 28px 32px; overflow-y: auto; }
+    @media (max-width: 900px) { .gt-engine { padding: 20px 16px; } }
+
+    .gt-engine-placeholder { display: flex; align-items: center; justify-content: center; height: 60vh; color: var(--ink-soft); font-size: 14px; text-align: center; }
+
+    /* ── Section ── */
+    .gt-section { margin-bottom: 28px; }
+    .gt-section-title { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sage); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--warm); }
+
+    /* ── Profile grid ── */
+    .gt-profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .gt-profile-grid { grid-template-columns: 1fr; } }
+
+    .gt-profile-item { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .gt-profile-label { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 5px; }
+    .gt-profile-value { font-size: 14px; color: var(--ink); line-height: 1.5; }
+    .gt-profile-value.flag { color: var(--red); font-weight: 500; }
+
+    /* ── DNA results ── */
+    .gt-dna-box { background: #fff; border: 1px solid var(--blue-bdr); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; }
+    .gt-dna-pending { background: var(--amber-bg); border: 1px solid var(--amber-bdr); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; color: var(--amber); }
+
+    /* ── Layer 1+2 Engine ── */
+    .gt-layer { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+    .gt-layer-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .gt-layer-num { width: 28px; height: 28px; background: var(--sage); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; flex-shrink: 0; }
+    .gt-layer-title { font-size: 14px; font-weight: 500; color: var(--ink); }
+    .gt-layer-desc { font-size: 12px; color: var(--ink-soft); }
+
+    /* Supplement table */
+    .gt-supplement-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .gt-supplement-table th { background: var(--sage-pale); color: var(--sage); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 12px; text-align: left; }
+    .gt-supplement-table td { padding: 8px 12px; border-bottom: 1px solid var(--warm); color: var(--ink-mid); vertical-align: top; }
+    .gt-supplement-table td input, .gt-supplement-table td select, .gt-supplement-table td textarea {
+      width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink); background: var(--cream);
+      outline: none;
+    }
+    .gt-supplement-table td input:focus, .gt-supplement-table td select:focus, .gt-supplement-table td textarea:focus {
+      border-color: var(--sage); background: #fff;
+    }
+    .gt-add-row { font-size: 12px; color: var(--sage); cursor: pointer; padding: 8px 12px; display: inline-flex; align-items: center; gap: 4px; }
+    .gt-add-row:hover { text-decoration: underline; }
+    .gt-del-row { color: var(--red); cursor: pointer; font-size: 12px; padding: 4px; }
+
+    /* Notes */
+    .gt-notes { width: 100%; min-height: 100px; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); background: var(--cream); outline: none; resize: vertical; transition: border-color 0.2s; }
+    .gt-notes:focus { border-color: var(--sage); background: #fff; }
+
+    /* Sign-off */
+    .gt-signoff { background: var(--sage-mid); border-radius: 12px; padding: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .gt-signoff-text { color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.5; }
+    .gt-signoff-text strong { color: #fff; display: block; font-size: 15px; margin-bottom: 4px; }
+    .gt-signoff-btn { padding: 13px 28px; background: #fff; color: var(--sage-mid); border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; }
+    .gt-signoff-btn:hover:not(:disabled) { background: var(--sage-pale); }
+    .gt-signoff-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .gt-signoff-btn.loading::after { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(74,103,65,0.3); border-top-color: var(--sage); border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 8px; vertical-align: middle; }
+
+    /* Alerts */
+    .gt-alert { display: none; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; }
+    .gt-alert.visible { display: block; }
+    .gt-alert.success { background: var(--green-bg); border: 1px solid var(--green-bdr); color: var(--green); }
+    .gt-alert.error { background: var(--red-bg); border: 1px solid var(--red-bdr); color: var(--red); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">GeneThrive</div>
+    <div class="login-title">Barbara's Engine</div>
+    <div class="login-sub">
+      Access health profiles and DNA results, run Layer 1+2 analysis, and send compounding scripts to TSI.
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-field"><label>Email</label><input type="email" id="login-email" placeholder="barbara@naturopath.com.au"></div>
+    <div class="login-field"><label>Password</label><input type="password" id="login-password"></div>
+    <button class="login-btn" onclick="login()">Open the Engine</button>
+  </div>
+</div>
+
+<!-- ENGINE -->
+<div id="engine-screen">
+  <div class="gt-header">
+    <div>
+      <span class="gt-brand">GENETHRIVE</span>
+      <span class="gt-badge">Barbara's Engine</span>
+    </div>
+    <button class="gt-logout" onclick="logout()">Sign out</button>
+  </div>
+
+  <div class="gt-layout">
+
+    <!-- Sidebar — pending clients -->
+    <div class="gt-sidebar">
+      <div class="gt-sidebar-title">Pending review</div>
+      <div id="pending-list"><div class="gt-sidebar-empty">Loading...</div></div>
+    </div>
+
+    <!-- Main engine -->
+    <div class="gt-engine">
+
+      <div id="engine-placeholder" class="gt-engine-placeholder">
+        <div>
+          <div style="font-size:40px;margin-bottom:12px">🧬</div>
+          <div style="font-weight:500;color:var(--ink);margin-bottom:6px">Select a client to begin</div>
+          <div>Choose a client from the sidebar to load their health profile and DNA results.</div>
+        </div>
+      </div>
+
+      <div id="engine-content" style="display:none">
+
+        <div class="gt-alert success" id="alert-success"></div>
+        <div class="gt-alert error"   id="alert-error"></div>
+
+        <!-- Client header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-size:11px;color:var(--ink-soft);font-weight:500;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">Active client</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:28px" id="engine-client-id">—</div>
+          </div>
+          <button onclick="refreshClient()" style="font-size:12px;color:var(--ink-soft);background:none;border:1px solid var(--border);border-radius:6px;padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif">↻ Refresh</button>
+        </div>
+
+        <!-- Health profile -->
+        <div class="gt-section">
+          <div class="gt-section-title">Health profile</div>
+          <div class="gt-profile-grid" id="profile-grid">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+
+        <!-- DNA results -->
+        <div class="gt-section">
+          <div class="gt-section-title">DNA results</div>
+          <div id="dna-section">
+            <div class="gt-dna-pending">DNA results not yet received for this client.</div>
+          </div>
+        </div>
+
+        <!-- Layer 1 — Evidence mapping -->
+        <div class="gt-section">
+          <div class="gt-section-title">Layer 1+2 — Formula engine</div>
+
+          <div class="gt-layer">
+            <div class="gt-layer-header">
+              <div class="gt-layer-num">1</div>
+              <div>
+                <div class="gt-layer-title">Evidence mapping</div>
+                <div class="gt-layer-desc">Map DNA variants + health profile to evidence base. Tick items that apply.</div>
+              </div>
+            </div>
+            <div id="layer1-items">
+              <!-- Rendered dynamically based on profile -->
+            </div>
+          </div>
+
+          <div class="gt-layer">
+            <div class="gt-layer-header">
+              <div class="gt-layer-num">2</div>
+              <div>
+                <div class="gt-layer-title">Personalised supplement list</div>
+                <div class="gt-layer-desc">Build the compounding formula from your analysis. This will be sent to TSI.</div>
+              </div>
+            </div>
+
+            <table class="gt-supplement-table">
+              <thead>
+                <tr>
+                  <th>Supplement</th>
+                  <th>Dose</th>
+                  <th>Frequency</th>
+                  <th>Notes</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="supplement-rows">
+                <!-- rows added by JS -->
+              </tbody>
+            </table>
+            <div class="gt-add-row" onclick="addSupplementRow()">
+              + Add supplement
+            </div>
+          </div>
+        </div>
+
+        <!-- Clinical notes -->
+        <div class="gt-section">
+          <div class="gt-section-title">Clinical notes</div>
+          <textarea class="gt-notes" id="clinical-notes" placeholder="Record your clinical observations, reasoning, and any instructions for TSI or the client's next appointment..."></textarea>
+        </div>
+
+        <!-- Sign-off -->
+        <div class="gt-signoff">
+          <div class="gt-signoff-text">
+            <strong>Ready to sign off?</strong>
+            This will send the compounding script to TSI, release your payment, and notify Paul's dashboard.
+          </div>
+          <button class="gt-signoff-btn" id="signoff-btn" onclick="signOff()">
+            Sign off &amp; send to TSI
+          </button>
+        </div>
+
+      </div><!-- #engine-content -->
+    </div><!-- .gt-engine -->
+  </div><!-- .gt-layout -->
+</div>
+
+<script>
+  const NETLIFY_URL = 'https://genethrive.netlify.app';
+  let _token = null;
+  let _currentClientId = null;
+  let _clientData = null;
+
+  // ── Auth ─────────────────────────────────────────────────────────────────
+  async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const pw    = document.getElementById('login-password').value;
+    const err   = document.getElementById('login-error');
+    err.classList.remove('visible');
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/partner-auth`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pw }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (data.partner !== 'naturopath') throw new Error('Invalid credentials for this portal');
+      _token = data.token;
+      sessionStorage.setItem('barbara_token', _token);
+      showEngine();
+      loadPending();
+    } catch (e) { err.textContent = e.message; err.classList.add('visible'); }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('barbara_token'); _token = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('engine-screen').style.display = 'none';
+  }
+
+  function showEngine() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('engine-screen').style.display = 'flex';
+  }
+
+  if (sessionStorage.getItem('barbara_token')) {
+    _token = sessionStorage.getItem('barbara_token');
+    showEngine();
+    loadPending();
+  }
+
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+  // ── Load pending clients ─────────────────────────────────────────────────
+  async function loadPending() {
+    const list = document.getElementById('pending-list');
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/barbara-engine?action=get_pending`, {
+        headers: { 'X-Partner-Token': _token },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      if (!data.pending?.length) {
+        list.innerHTML = '<div class="gt-sidebar-empty">No clients awaiting review.</div>';
+        return;
+      }
+
+      list.innerHTML = data.pending.map(row => `
+        <div class="gt-client-item" onclick="loadClient('${row.client_id}')">
+          <div class="gt-client-id">${row.client_id}</div>
+          <div class="gt-client-date">Results in: ${new Date(row.dna_results_received_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' })}</div>
+          <span class="gt-client-badge pending">Awaiting review</span>
+        </div>
+      `).join('');
+
+    } catch (err) {
+      list.innerHTML = `<div class="gt-sidebar-empty">Error loading: ${err.message}</div>`;
+    }
+  }
+
+  // ── Load client data ─────────────────────────────────────────────────────
+  async function loadClient(clientId) {
+    _currentClientId = clientId;
+
+    // Highlight in sidebar
+    document.querySelectorAll('.gt-client-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.gt-client-item').forEach(el => {
+      if (el.querySelector('.gt-client-id')?.textContent === clientId) el.classList.add('active');
+    });
+
+    document.getElementById('engine-placeholder').style.display = 'none';
+    document.getElementById('engine-content').style.display     = 'block';
+    document.getElementById('engine-client-id').textContent     = clientId;
+
+    clearAlerts();
+
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/barbara-engine?action=get_client&clientId=${encodeURIComponent(clientId)}`, {
+        headers: { 'X-Partner-Token': _token },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      _clientData = data;
+      renderProfile(data.profile);
+      renderDNA(data.dna);
+      renderLayer1(data.profile, data.dna);
+      resetSupplementTable();
+
+    } catch (err) {
+      showError('Could not load client data: ' + err.message);
+    }
+  }
+
+  async function refreshClient() { if (_currentClientId) loadClient(_currentClientId); }
+
+  // ── Render health profile ────────────────────────────────────────────────
+  function renderProfile(p) {
+    if (!p) { document.getElementById('profile-grid').innerHTML = '<div style="color:var(--ink-soft);font-size:13px">No profile found.</div>'; return; }
+
+    const flag = val => val === 'Yes';
+
+    const items = [
+      { label: 'Gender', value: p.gender || '—' },
+      { label: 'Age', value: p.age ? `${p.age} years` : '—' },
+      { label: 'Pregnant / breastfeeding', value: p.pregnant_breastfeeding || '—', flagIf: flag(p.pregnant_breastfeeding) },
+      { label: 'Haematological condition', value: p.conditions_haematological || '—', flagIf: flag(p.conditions_haematological) },
+      { label: 'Medical conditions', value: p.conditions === 'Yes' ? (p.conditions_detail || 'Yes — see detail') : 'None', flagIf: flag(p.conditions) },
+      { label: 'Medications', value: p.medications === 'Yes' ? (p.medications_detail || 'Yes — see detail') : 'None', flagIf: flag(p.medications) },
+      { label: 'Allergies', value: p.allergies === 'Yes' ? (p.allergies_detail || 'Yes — see detail') : 'None', flagIf: flag(p.allergies) },
+      { label: 'Fasting protocol', value: p.fasting === 'Yes' ? (p.fasting_detail || 'Yes — protocol not specified') : 'No' },
+    ];
+
+    document.getElementById('profile-grid').innerHTML = items.map(i => `
+      <div class="gt-profile-item">
+        <div class="gt-profile-label">${i.label}</div>
+        <div class="gt-profile-value ${i.flagIf ? 'flag' : ''}">${i.value}</div>
+      </div>
+    `).join('');
+  }
+
+  // ── Render DNA results ───────────────────────────────────────────────────
+  function renderDNA(dna) {
+    const el = document.getElementById('dna-section');
+    if (!dna || !dna.result_data) {
+      el.innerHTML = '<div class="gt-dna-pending">DNA results not yet received for this client. You will be notified when NutriPath submits them.</div>';
+      return;
+    }
+
+    const received = new Date(dna.received_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+    const labNotes = dna.result_data?.lab_notes || '';
+    const hasPdf   = !!dna.result_data?.pdf_base64;
+
+    el.innerHTML = `
+      <div class="gt-dna-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+          <div>
+            <div style="font-size:10px;color:var(--blue);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">
+              Results received
+            </div>
+            <div style="font-size:15px;font-weight:500;color:var(--ink)">${received}</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Sequencing: ${dna.sequencing_partner || 'NutriPath US Lab'}</div>
+          </div>
+          ${hasPdf ? `
+            <button onclick="downloadDNAPdf()" style="
+              padding:9px 18px;background:var(--blue-bg);color:var(--blue);
+              border:1px solid var(--blue-bdr);border-radius:8px;
+              font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
+              cursor:pointer;white-space:nowrap">
+              ↓ Download PDF
+            </button>` : `<span style="font-size:12px;color:var(--ink-soft)">No PDF attached</span>`}
+        </div>
+        ${labNotes ? `
+          <div style="background:var(--cream);border-radius:8px;padding:12px 14px;margin-bottom:4px">
+            <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px">Lab notes from NutriPath</div>
+            <div style="font-size:13px;color:var(--ink-mid);line-height:1.6;white-space:pre-wrap">${labNotes}</div>
+          </div>` : ''}
+      </div>
+    `;
+  }
+
+  function downloadDNAPdf() {
+    const dna = _clientData?.dna;
+    if (!dna?.result_data?.pdf_base64) return;
+    const byteChars = atob(dna.result_data.pdf_base64);
+    const bytes     = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `GeneThrive-DNA-${_currentClientId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Layer 1 — evidence mapping checkboxes ────────────────────────────────
+  function renderLayer1(profile, dna) {
+    const items = [
+      { id: 'l1_methylation', label: 'Methylation pathway variants identified (MTHFR, MTR, MTRR)' },
+      { id: 'l1_detox',       label: 'Detoxification pathway support indicated' },
+      { id: 'l1_inflammation', label: 'Inflammatory markers elevated — anti-inflammatory formula indicated' },
+      { id: 'l1_hormones',    label: 'Hormone metabolism variants — consider DIM, B6 support' },
+      { id: 'l1_fatigue',     label: 'Energy metabolism — CoQ10, ribose, B-vitamins indicated' },
+      { id: 'l1_bone',        label: 'Bone density — Vitamin D3/K2, magnesium indicated' },
+      { id: 'l1_gut',         label: 'Gut microbiome — probiotic strains, glutamine indicated' },
+      { id: 'l1_iron',        label: profile?.conditions_haematological === 'Yes' ? '⚠ Haematological condition — review iron supplementation carefully' : 'Iron status — standard inclusion', flagged: profile?.conditions_haematological === 'Yes' },
+      { id: 'l1_omega',       label: 'Omega-3 fatty acid conversion — EPA/DHA support' },
+      { id: 'l1_antioxidant', label: 'Oxidative stress — antioxidant complex indicated' },
+    ];
+
+    document.getElementById('layer1-items').innerHTML = items.map(item => `
+      <label style="display:flex;align-items:flex-start;gap:10px;padding:8px 4px;cursor:pointer;border-bottom:1px solid var(--warm)">
+        <input type="checkbox" id="${item.id}" style="margin-top:2px;accent-color:var(--sage);flex-shrink:0">
+        <span style="font-size:13px;color:${item.flagged ? 'var(--red)' : 'var(--ink-mid)'}${item.flagged ? ';font-weight:500' : ''}">${item.label}</span>
+      </label>
+    `).join('');
+  }
+
+  // ── Supplement table ─────────────────────────────────────────────────────
+  let rowCount = 0;
+
+  function resetSupplementTable() {
+    rowCount = 0;
+    document.getElementById('supplement-rows').innerHTML = '';
+    addSupplementRow();
+    addSupplementRow();
+    addSupplementRow();
+  }
+
+  function addSupplementRow() {
+    rowCount++;
+    const id  = rowCount;
+    const row = document.createElement('tr');
+    row.id    = `supp-row-${id}`;
+    row.innerHTML = `
+      <td><input type="text" placeholder="e.g. Methylfolate" id="supp-name-${id}"></td>
+      <td><input type="text" placeholder="e.g. 400mcg" id="supp-dose-${id}" style="width:100px"></td>
+      <td>
+        <select id="supp-freq-${id}">
+          <option>Once daily</option>
+          <option>Twice daily</option>
+          <option>Three times daily</option>
+          <option>With meals</option>
+          <option>At night</option>
+          <option>As directed</option>
+        </select>
+      </td>
+      <td><input type="text" placeholder="Notes..." id="supp-notes-${id}"></td>
+      <td><span class="gt-del-row" onclick="delRow(${id})">✕</span></td>
+    `;
+    document.getElementById('supplement-rows').appendChild(row);
+  }
+
+  function delRow(id) {
+    const row = document.getElementById(`supp-row-${id}`);
+    if (row) row.remove();
+  }
+
+  function getSupplementList() {
+    const items = [];
+    document.querySelectorAll('[id^="supp-row-"]').forEach(row => {
+      const id   = row.id.replace('supp-row-', '');
+      const name = document.getElementById(`supp-name-${id}`)?.value.trim();
+      if (name) {
+        items.push({
+          name,
+          dose:      document.getElementById(`supp-dose-${id}`)?.value.trim(),
+          frequency: document.getElementById(`supp-freq-${id}`)?.value,
+          notes:     document.getElementById(`supp-notes-${id}`)?.value.trim(),
+        });
+      }
+    });
+    return { items };
+  }
+
+  // ── Sign off ─────────────────────────────────────────────────────────────
+  async function signOff() {
+    const notes = document.getElementById('clinical-notes').value.trim();
+    const supplementList = getSupplementList();
+    const btn   = document.getElementById('signoff-btn');
+
+    if (!supplementList.items.length) {
+      showError('Please add at least one supplement to the formula before signing off.');
+      return;
+    }
+    if (!notes) {
+      showError('Please add clinical notes before signing off.');
+      return;
+    }
+    if (!confirm(`Sign off on ${_currentClientId} and send the compounding script to TSI?`)) return;
+
+    btn.classList.add('loading');
+    btn.disabled    = true;
+    btn.textContent = 'Sending to TSI...';
+    clearAlerts();
+
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/barbara-engine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Partner-Token': _token },
+        body: JSON.stringify({
+          action: 'sign_off',
+          clientId: _currentClientId,
+          supplementList,
+          notes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sign-off failed');
+
+      showSuccess(`✓ Signed off on ${_currentClientId}. Script sent to TSI. Your payment has been released.`);
+
+      // Update sidebar — mark as done
+      document.querySelectorAll('.gt-client-item').forEach(el => {
+        if (el.querySelector('.gt-client-id')?.textContent === _currentClientId) {
+          el.classList.add('reviewed');
+          el.querySelector('.gt-client-badge').className = 'gt-client-badge done';
+          el.querySelector('.gt-client-badge').textContent = 'Reviewed';
+        }
+      });
+
+      btn.textContent = 'Signed off ✓';
+
+    } catch (err) {
+      showError(err.message);
+      btn.classList.remove('loading');
+      btn.disabled    = false;
+      btn.textContent = 'Sign off & send to TSI';
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function showSuccess(msg) {
+    const el = document.getElementById('alert-success');
+    el.textContent = msg; el.classList.add('visible');
+    document.getElementById('alert-error').classList.remove('visible');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('alert-error');
+    el.textContent = msg; el.classList.add('visible');
+    document.getElementById('alert-success').classList.remove('visible');
+  }
+
+  function clearAlerts() {
+    document.getElementById('alert-success').classList.remove('visible');
+    document.getElementById('alert-error').classList.remove('visible');
+  }
+</script>
+</body>
+</html>

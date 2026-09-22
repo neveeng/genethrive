@@ -1,9 +1,5 @@
 plugins = []
 headers = []
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
 
 [[redirects]]
   from = "/*"
@@ -14,6 +10,12 @@ headers = []
   directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["@aws-sdk"]
+  
+# SLA breach checker — runs every 30 minutes
+# Detects time-based SLA crossings and patches order_sla rows,
+# which fires the Supabase Database Webhook → notify-on-change.js → SMS
+[functions.check-sla-breaches]
+  schedule = "*/30 * * * *"
   
 [functions."*"]
 

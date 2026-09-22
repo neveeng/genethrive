@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeneThrive — Oversight Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F4EE; --warm: #EDE8DF; --ink: #1C1C1A; --ink-mid: #4A4A46;
+      --ink-soft: #7A7A74; --border: #D6CFC3; --radius: 8px;
+      --green: #166534; --green-bg: #F0FDF4; --green-bdr: #BBF7D0;
+      --amber: #92400E; --amber-bg: #FFF7ED; --amber-bdr: #FED7AA;
+      --red: #B91C1C; --red-bg: #FEF2F2; --red-bdr: #FECACA;
+      --blue: #1d4ed8; --blue-bg: #EFF6FF; --blue-bdr: #BFDBFE;
+      --gray-bg: #F8FAFC;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+
+    /* Login */
+    #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    #dashboard-screen { display: none; flex-direction: column; min-height: 100vh; }
+
+    .login-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 380px; box-shadow: 0 2px 16px rgba(28,28,26,0.07); }
+    .login-logo { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px; }
+    .login-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--ink); margin-bottom: 4px; }
+    .login-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 24px; }
+    .login-field { margin-bottom: 14px; }
+    .login-field label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-mid); margin-bottom: 6px; }
+    .login-field input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); background: var(--cream); outline: none; }
+    .login-field input:focus { border-color: var(--ink); background: #fff; }
+    .login-btn { width: 100%; padding: 12px; background: var(--ink); color: #fff; border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 4px; }
+    .login-btn:hover { background: var(--ink-mid); }
+    .login-error { font-size: 13px; color: var(--red); margin-top: 10px; display: none; }
+    .login-error.visible { display: block; }
+
+    /* Header */
+    .gt-header { background: var(--ink); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .gt-brand { color: #fff; font-size: 14px; font-weight: 500; letter-spacing: 0.12em; }
+    .gt-badge { font-size: 11px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); padding: 3px 12px; border-radius: 20px; }
+    .gt-header-right { display: flex; align-items: center; gap: 16px; }
+    .gt-updated { font-size: 12px; color: rgba(255,255,255,0.4); }
+    .gt-logout { background: none; border: none; color: rgba(255,255,255,0.4); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
+    .gt-logout:hover { color: #fff; }
+
+    /* Main */
+    .gt-main { flex: 1; padding: 28px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+    /* Summary cards */
+    .gt-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+    @media (max-width: 768px) { .gt-summary { grid-template-columns: repeat(2, 1fr); } }
+
+    .gt-summary-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+    .gt-summary-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px; }
+    .gt-summary-value { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--ink); }
+    .gt-summary-card.overdue  { border-color: var(--red-bdr);   background: var(--red-bg); }
+    .gt-summary-card.overdue .gt-summary-value { color: var(--red); }
+    .gt-summary-card.warning  { border-color: var(--amber-bdr); background: var(--amber-bg); }
+    .gt-summary-card.warning .gt-summary-value { color: var(--amber); }
+    .gt-summary-card.on_track { border-color: var(--blue-bdr);  background: var(--blue-bg); }
+    .gt-summary-card.on_track .gt-summary-value { color: var(--blue); }
+
+    /* Table */
+    .gt-table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .gt-table-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--warm); }
+    .gt-table-title { font-size: 13px; font-weight: 500; color: var(--ink); }
+    .gt-refresh-btn { font-size: 12px; color: var(--ink-soft); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .gt-refresh-btn:hover { background: var(--warm); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); padding: 10px 16px; text-align: left; background: var(--gray-bg); border-bottom: 1px solid var(--warm); white-space: nowrap; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--warm); font-size: 13px; color: var(--ink-mid); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--gray-bg); }
+
+    /* SLA dots */
+    .sla-dots { display: flex; gap: 4px; flex-wrap: wrap; }
+    .sla-dot {
+      width: 10px; height: 10px; border-radius: 50%; cursor: help;
+      position: relative;
+    }
+    .sla-dot.complete    { background: #22c55e; }
+    .sla-dot.on_track    { background: #3b82f6; }
+    .sla-dot.warning     { background: #f59e0b; }
+    .sla-dot.overdue     { background: #ef4444; animation: pulse 1.5s infinite; }
+    .sla-dot.not_started { background: var(--border); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Row status */
+    .gt-row-badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 10px; border-radius: 20px; white-space: nowrap; }
+    .gt-row-badge.overdue  { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-bdr); }
+    .gt-row-badge.warning  { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bdr); }
+    .gt-row-badge.on_track { background: var(--blue-bg);  color: var(--blue);  border: 1px solid var(--blue-bdr); }
+    .gt-row-badge.complete { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+
+    /* Empty state */
+    .gt-empty { padding: 48px; text-align: center; color: var(--ink-soft); font-size: 14px; }
+
+    /* Legend */
+    .gt-legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--ink-soft); }
+    .gt-legend-item { display: flex; align-items: center; gap: 6px; }
+    .gt-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* Escalation banner */
+    .gt-escalation-banner { background: var(--red-bg); border: 1px solid var(--red-bdr); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: var(--red); display: none; }
+    .gt-escalation-banner.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">GeneThrive</div>
+    <div class="login-title">Oversight Dashboard</div>
+    <div class="login-sub">Status and SLA tracking — no clinical content</div>
+    <div class="login-field">
+      <label>Access token</label>
+      <input type="password" id="token-input" placeholder="Enter your access token">
+    </div>
+    <button class="login-btn" onclick="login()">Access dashboard</button>
+    <div class="login-error" id="login-error">Invalid token. Please try again.</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard-screen">
+
+  <div class="gt-header">
+    <div>
+      <span class="gt-brand">GENETHRIVE</span>
+      <span class="gt-badge" style="margin-left:12px">Oversight — Paul</span>
+    </div>
+    <div class="gt-header-right">
+      <span class="gt-updated" id="last-updated">—</span>
+      <button class="gt-logout" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="gt-main">
+
+    <!-- Escalation banner -->
+    <div class="gt-escalation-banner" id="escalation-banner"></div>
+
+    <!-- Summary cards -->
+    <div class="gt-summary">
+      <div class="gt-summary-card overdue">
+        <div class="gt-summary-label">Overdue</div>
+        <div class="gt-summary-value" id="count-overdue">—</div>
+      </div>
+      <div class="gt-summary-card warning">
+        <div class="gt-summary-label">At risk</div>
+        <div class="gt-summary-value" id="count-warning">—</div>
+      </div>
+      <div class="gt-summary-card on_track">
+        <div class="gt-summary-label">On track</div>
+        <div class="gt-summary-value" id="count-ontrack">—</div>
+      </div>
+      <div class="gt-summary-card">
+        <div class="gt-summary-label">Total active</div>
+        <div class="gt-summary-value" id="count-total">—</div>
+      </div>
+    </div>
+
+    <!-- Orders table -->
+    <div class="gt-table-wrap">
+      <div class="gt-table-header">
+        <span class="gt-table-title">Active orders</span>
+        <button class="gt-refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+      </div>
+      <div id="table-container">
+        <div class="gt-empty">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="gt-legend">
+      <strong style="color:var(--ink)">SLA dots:</strong>
+      <div class="gt-legend-item"><div class="gt-legend-dot" style="background:#22c55e"></div>Complete</div>
+      <div class="gt-legend-item"><div class="gt-legend-dot" style="background:#3b82f6"></div>On track</div>
+      <div class="gt-legend-item"><div class="gt-legend-dot" style="background:#f59e0b"></div>At risk (&gt;75% of SLA used)</div>
+      <div class="gt-legend-item"><div class="gt-legend-dot" style="background:#ef4444"></div>Overdue</div>
+      <div class="gt-legend-item"><div class="gt-legend-dot" style="background:var(--border)"></div>Not started</div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">
+      Hover over dots for step name. SLA windows: Kit dispatch 48h · Swab return 7d · DNA results 7d · Barbara review 48h · TSI script open 24h · TSI ship 72h
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const NETLIFY_URL = 'https://genethrive.netlify.app';
+  let _token = null;
+
+  const SLA_LABELS = {
+    kit_dispatch:   'Kit dispatched (48h)',
+    swab_return:    'Swab returned (7d)',
+    dna_results:    'DNA results in (7d)',
+    barbara_review: 'Barbara reviewed (48h)',
+    tsi_script:     'TSI script opened (24h)',
+    tsi_shipped:    'TSI shipped (72h)',
+  };
+
+  // ── Auth ─────────────────────────────────────────────────────────────────
+  async function login() {
+    const token = document.getElementById('token-input').value.trim();
+    const err   = document.getElementById('login-error');
+    err.classList.remove('visible');
+
+    if (!token) { err.textContent = 'Please enter your access token.'; err.classList.add('visible'); return; }
+
+    // Test token by calling dashboard
+    try {
+      const res = await fetch(`${NETLIFY_URL}/.netlify/functions/oversight-dashboard`, {
+        headers: { 'X-Oversight-Token': token },
+      });
+      if (!res.ok) throw new Error('Invalid');
+      _token = token;
+      sessionStorage.setItem('oversight_token', token);
+      showDashboard();
+      loadDashboard();
+    } catch {
+      err.textContent = 'Invalid token.';
+      err.classList.add('visible');
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('oversight_token');
+    _token = null;
+    document.getElementById('dashboard-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard-screen').style.display = 'flex';
+  }
+
+  // Auto-login from session
+  const saved = sessionStorage.getItem('oversight_token');
+  if (saved) { _token = saved; showDashboard(); loadDashboard(); }
+
+  document.getElementById('token-input').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+  // ── Load data ─────────────────────────────────────────────────────────────
+  async function loadDashboard() {
+    try {
+      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/oversight-dashboard`, {
+        headers: { 'X-Oversight-Token': _token },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      renderSummary(data.summary);
+      renderTable(data.rows);
+      renderEscalations(data.rows);
+      document.getElementById('last-updated').textContent =
+        'Updated ' + new Date(data.generatedAt).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+
+    } catch (err) {
+      document.getElementById('table-container').innerHTML =
+        `<div class="gt-empty">Error loading data: ${err.message}</div>`;
+    }
+  }
+
+  function renderSummary(s) {
+    document.getElementById('count-overdue').textContent = s.overdue;
+    document.getElementById('count-warning').textContent = s.warning;
+    document.getElementById('count-ontrack').textContent = s.on_track;
+    document.getElementById('count-total').textContent   = s.total;
+  }
+
+  function renderEscalations(rows) {
+    const overdue = rows.filter(r => r.worstSLA === 'overdue');
+    const banner  = document.getElementById('escalation-banner');
+    if (overdue.length === 0) { banner.classList.remove('visible'); return; }
+    banner.innerHTML = `<strong>⚠ ${overdue.length} order${overdue.length > 1 ? 's' : ''} overdue SLA:</strong> ` +
+      overdue.map(r => r.clientId).join(', ');
+    banner.classList.add('visible');
+  }
+
+  function renderTable(rows) {
+    if (!rows.length) {
+      document.getElementById('table-container').innerHTML = '<div class="gt-empty">No active orders.</div>';
+      return;
+    }
+
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Client ID</th>
+            <th>Order</th>
+            <th>Started</th>
+            <th>Current step</th>
+            <th>SLA status</th>
+            <th>SLA breakdown</th>
+            <th>Subscription</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => {
+            const dots = Object.entries(row.sla).map(([key, val]) =>
+              `<div class="sla-dot ${val.status}" title="${val.label}: ${val.status.replace('_', ' ')}"></div>`
+            ).join('');
+
+            const date = new Date(row.createdAt).toLocaleDateString('en-AU', {
+              day: '2-digit', month: 'short', year: 'numeric'
+            });
+
+            const subBadge = row.status === 'cancelled'
+              ? '<span style="color:#B91C1C;font-size:11px">Cancelled</span>'
+              : '<span style="color:#166534;font-size:11px">Active</span>';
+
+            return `<tr>
+              <td><strong>${row.clientId}</strong></td>
+              <td style="color:var(--ink-soft)">${row.orderNumber ? '#' + row.orderNumber : '—'}</td>
+              <td style="color:var(--ink-soft)">${date}</td>
+              <td>${row.currentStep}</td>
+              <td><span class="gt-row-badge ${row.worstSLA}">${row.worstSLA.replace('_', ' ')}</span></td>
+              <td><div class="sla-dots">${dots}</div></td>
+              <td>${subBadge}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+
+    document.getElementById('table-container').innerHTML = html;
+  }
+
+  // Auto-refresh every 5 minutes
+  setInterval(() => { if (_token) loadDashboard(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>

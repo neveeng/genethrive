@@ -37,8 +37,23 @@
 const Stripe     = require('stripe');
 const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { shopifyFetch } = require('./shopify-token');
+const { advanceStage } = require('./sla-stage');
+
+// Supabase REST helper
+async function supabaseRequest(path, method = 'GET', body = null) {
+  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
+    method,
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        process.env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      'Prefer':        method === 'POST' ? 'return=minimal' : '',
+    },
+    body: body ? JSON.stringify(body) : null,
+  });
+  return { ok: res.ok, status: res.status };
+}
 
 // ── Env var validation ────────────────────────────────────────────────────────
 
@@ -257,12 +272,12 @@ async function generateLabPdf(clientId, clientDetails, healthData, orderDate) {
   // Instructions
   y = drawSection(page, fonts, y, 'Instructions');
   y -= 4;
-  const siteUrl = (process.env.SITE_URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
+  const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
   const instructions = [
     `1.  Ship the DNA mouth swab kit to the client address above.`,
     `2.  Use Client ID ${clientId} on all kit labelling and correspondence.`,
     `3.  Once results are ready, POST to GeneThrive using the Client ID only.`,
-    `4.  Results endpoint: ${siteUrl}/nutripath-portal.html`,
+    `4.  Results endpoint: ${siteUrl}/.netlify/functions/dispatch-results`,
     `5.  Do not include client name or address in DNA result communications.`,
   ];
   for (const line of instructions) {
@@ -578,117 +593,43 @@ exports.handler = async function (event) {
     // Non-fatal — order still processes
   }
 
-  // ── 6. Generate PDFs ──────────────────────────────────────────────────────────
-  let opsPdfBytes = null;
-  let labPdfBytes = null;
+  // ── 6. Create Supabase order_sla record ──────────────────────────────────────
   try {
-    [opsPdfBytes, labPdfBytes] = await Promise.all([
-      generateOpsPdf(clientId, clientDetails, healthData, orderDate),
-      generateLabPdf(clientId, clientDetails, healthData, orderDate),
-    ]);
-    console.log(`GeneThrive: PDFs generated for ${clientId}`);
+    await supabaseRequest('/order_sla', 'POST', {
+      client_id:              clientId,
+      shopify_order_number:   shopifyOrderNumber ? String(shopifyOrderNumber) : null,
+      client_email:           clientDetails.email,
+      client_phone:           clientDetails.phone,
+      payment_received_at:    new Date().toISOString(),
+    });
+    await advanceStage(clientId, 'health_profile');
+    console.log(`GeneThrive: Supabase order_sla created for ${clientId}`);
   } catch (err) {
-    console.error('GeneThrive: PDF generation failed —', err.message);
+    console.error('GeneThrive: Supabase order_sla insert failed —', err.message);
   }
 
   // ── 7. Send emails ────────────────────────────────────────────────────────────
+  // PRIVACY RULE:
+  //   - Client email: payment confirmed + link to fill health profile
+  //   - Ops email: status notification only — NO health content, NO full details
+  //   - NutriPath is notified AFTER health profile is submitted (via submit-health-profile.js)
+  const siteUrl   = (process.env.SITE_URL || process.env.URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
+  const storeUrl  = `https://${process.env.SHOPIFY_STORE_DOMAIN || 'genethrive.myshopify.com'}`;
+  const healthUrl = `${storeUrl}/pages/health-profile?id=${encodeURIComponent(clientId)}`;
+
   try {
     const transporter = createTransporter();
     const firstName   = clientDetails.name.split(' ')[0];
+    const initialAmt  = ((parseInt(process.env.PRICE_INITIAL_CENTS || '57500')) / 100).toFixed(2);
 
-    const emailJobs = [];
+    await Promise.all([
 
-    // Ops email
-    if (opsPdfBytes) {
-      emailJobs.push(
-        transporter.sendMail({
-          from:    process.env.EMAIL_FROM,
-          to:      process.env.EMAIL_OPS,
-          replyTo: process.env.EMAIL_REPLY_TO,
-          subject: `New Order — ${clientId} — Action Required`,
-          html: `<div style="font-family:sans-serif;color:#1c1c1a;max-width:520px">
-            <div style="background:#1c1c1a;padding:20px 24px;border-radius:8px 8px 0 0">
-              <span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
-            </div>
-            <div style="border:1px solid #d6cfc3;border-top:none;padding:24px;border-radius:0 0 8px 8px">
-              <p style="margin:0 0 12px">New order received and paid via Stripe.</p>
-              <div style="background:#f7f4ee;border-radius:6px;padding:14px;margin-bottom:16px">
-                <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:4px">CLIENT ID</div>
-                <div style="font-size:20px;font-weight:700">${clientId}</div>
-              </div>
-              <p style="font-size:13px;font-weight:600;margin:0 0 8px">Immediate actions:</p>
-              <ol style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 16px;padding-left:18px">
-                <li>$275 auto-transferred to Nutripath</li>
-                <li>$95 auto-transferred to Ops</li>
-                <li>$200/mo subscription created</li>
-                <li>Dispatch DNA kit to client</li>
-                <li>Trigger pharmacist release ($140) after pickup</li>
-                <li>Trigger naturopath release ($65) after CIL</li>
-              </ol>
-              <p style="font-size:13px;color:#7a7a74">Full details in attached PDF.</p>
-            </div>
-          </div>`,
-          attachments: [{
-            filename:    `GeneThrive-Order-${clientId}.pdf`,
-            content:     Buffer.from(opsPdfBytes),
-            contentType: 'application/pdf',
-          }],
-        })
-      );
-    }
-
-    // Lab email
-    if (labPdfBytes) {
-      emailJobs.push(
-        transporter.sendMail({
-          from:    process.env.EMAIL_FROM,
-          to:      process.env.EMAIL_LAB,
-          replyTo: process.env.EMAIL_REPLY_TO,
-          subject: `New DNA Test Order — ${clientId} — Action: Dispatch Mouth Swab Kit`,
-          html: `<div style="font-family:sans-serif;color:#1c1c1a;max-width:520px">
-            <div style="background:#4a6741;padding:20px 24px;border-radius:8px 8px 0 0">
-              <span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
-            </div>
-            <div style="border:1px solid #d6cfc3;border-top:none;padding:24px;border-radius:0 0 8px 8px">
-              <p style="margin:0 0 16px;font-size:14px;color:#4a4a46">New DNA test order received. Please dispatch a mouth swab kit to the client.</p>
-              <div style="background:#f7f4ee;border-radius:6px;padding:14px;margin-bottom:16px">
-                <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:4px">CLIENT ID</div>
-                <div style="font-size:20px;font-weight:700">${clientId}</div>
-              </div>
-              <div style="background:#e8eee7;border-radius:6px;padding:14px;margin-bottom:16px">
-                <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:8px">SHIP KIT TO</div>
-                <div style="font-size:13px;color:#1c1c1a;line-height:1.8">
-                  <strong>${clientDetails.name}</strong><br>
-                  ${clientDetails.address}, ${clientDetails.suburb} ${clientDetails.state} ${clientDetails.postcode}<br>
-                  ${clientDetails.phone}<br>
-                  ${clientDetails.email}
-                </div>
-              </div>
-              <p style="font-size:13px;font-weight:600;color:#1c1c1a;margin:0 0 8px">Important:</p>
-              <ul style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 12px;padding-left:18px">
-                <li>Label the kit with Client ID: <strong>${clientId}</strong></li>
-                <li>Return DNA results to GeneThrive using the Client ID only</li>
-                <li>Do not include client name or address in result communications</li>
-              </ul>
-              <p style="font-size:13px;color:#7a7a74">Full details and health profile in the attached PDF.</p>
-            </div>
-          </div>`,
-          attachments: [{
-            filename:    `GeneThrive-Lab-${clientId}.pdf`,
-            content:     Buffer.from(labPdfBytes),
-            contentType: 'application/pdf',
-          }],
-        })
-      );
-    }
-
-    // Client confirmation
-    emailJobs.push(
+      // Client — payment confirmed + health profile link
       transporter.sendMail({
         from:    process.env.EMAIL_FROM,
         to:      clientDetails.email,
         replyTo: process.env.EMAIL_REPLY_TO,
-        subject: `Your GeneThrive order is confirmed — ${clientId}`,
+        subject: `Your GeneThrive order is confirmed — next step inside — ${clientId}`,
         html: `<div style="font-family:sans-serif;color:#1c1c1a;max-width:520px">
           <div style="background:#4a6741;padding:20px 24px;border-radius:8px 8px 0 0">
             <span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
@@ -696,34 +637,96 @@ exports.handler = async function (event) {
           <div style="border:1px solid #d6cfc3;border-top:none;padding:28px;border-radius:0 0 8px 8px">
             <h2 style="margin:0 0 14px;font-size:20px">Thank you, ${firstName}!</h2>
             <p style="margin:0 0 16px;font-size:14px;color:#4a4a46;line-height:1.6">
-              Your payment of <strong>$575.00</strong> has been received.
-              Your DNA test kit will be dispatched shortly.
+              Your payment of <strong>$${initialAmt}</strong> has been received.
             </p>
             <div style="background:#e8eee7;border-radius:8px;padding:16px;margin-bottom:20px">
               <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:4px">YOUR REFERENCE</div>
               <div style="font-size:18px;font-weight:700">${clientId}</div>
               <div style="font-size:12px;color:#7a7a74;margin-top:4px">Keep this for any enquiries</div>
             </div>
+
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin-bottom:20px">
+              <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">
+                Action required — complete your health profile
+              </div>
+              <p style="font-size:13px;color:#4a4a46;line-height:1.6;margin:0 0 14px">
+                To personalise your vitamin formula and dispatch your DNA swab kit,
+                we need a few details about your health. It takes about 2 minutes.
+              </p>
+              <a href="${healthUrl}"
+                 style="display:inline-block;padding:12px 24px;background:#4a6741;color:#fff;
+                        border-radius:8px;font-size:14px;font-weight:500;text-decoration:none">
+                Start your health journey →
+              </a>
+            </div>
+
             <p style="font-size:13px;font-weight:600;margin:0 0 10px">What happens next:</p>
             <ol style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 20px;padding-left:18px">
-              <li>DNA test kit arrives in 3-5 business days</li>
-              <li>Complete your sample and return it using the prepaid envelope</li>
-              <li>Our naturopath reviews your results and health profile</li>
+              <li><strong>Complete your health profile</strong> — link above</li>
+              <li>DNA swab kit dispatched to your address (3–5 business days)</li>
+              <li>Return the swab using the prepaid envelope</li>
+              <li>Our naturopath reviews your results</li>
               <li>Your personalised vitamins are compounded and dispatched</li>
               <li>Your <strong>$200/month</strong> subscription begins 30 days from today</li>
             </ol>
-            <p style="font-size:13px;color:#7a7a74;margin:0">
-              Questions? Contact us at
-              <a href="mailto:${process.env.EMAIL_REPLY_TO}" style="color:#4a6741">
-                ${process.env.EMAIL_REPLY_TO}
-              </a>
+            <p style="font-size:12px;color:#7a7a74;margin:0 0 8px">
+              To cancel your subscription visit
+              <a href="${storeUrl}/pages/cancel-subscription" style="color:#4a6741">our cancellation page</a>.
+            </p>
+            <p style="font-size:12px;color:#7a7a74;margin:0">
+              Questions? <a href="mailto:${process.env.EMAIL_REPLY_TO}" style="color:#4a6741">${process.env.EMAIL_REPLY_TO}</a>
             </p>
           </div>
         </div>`,
-      })
-    );
+      }),
 
-    await Promise.all(emailJobs);
+      // Ops — status only, NO health content, NO client details beyond ID
+      transporter.sendMail({
+        from:    process.env.EMAIL_FROM,
+        to:      process.env.EMAIL_OPS,
+        replyTo: process.env.EMAIL_REPLY_TO,
+        subject: `New order received — ${clientId} — awaiting health profile`,
+        html: `<div style="font-family:sans-serif;max-width:480px;color:#1c1c1a">
+          <div style="background:#1c1c1a;padding:16px 24px;border-radius:8px 8px 0 0">
+            <span style="color:#fff;font-size:15px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
+            <span style="color:rgba(255,255,255,0.5);font-size:12px;margin-left:10px">Ops — Status Only</span>
+          </div>
+          <div style="border:1px solid #d6cfc3;border-top:none;padding:24px;border-radius:0 0 8px 8px">
+            <p style="font-size:14px;margin:0 0 16px;color:#4a4a46">
+              New order paid. Client has been sent the health profile link.
+              NutriPath will be notified once the profile is submitted.
+            </p>
+            <table style="width:100%;font-size:13px;border-collapse:collapse">
+              <tr style="border-bottom:1px solid #ede8df">
+                <td style="padding:8px 0;color:#7a7a74;width:160px">Client ID</td>
+                <td style="padding:8px 0;font-weight:600">${clientId}</td>
+              </tr>
+              <tr style="border-bottom:1px solid #ede8df">
+                <td style="padding:8px 0;color:#7a7a74">Shopify order</td>
+                <td style="padding:8px 0">${shopifyOrderNumber ? '#' + shopifyOrderNumber : 'Pending'}</td>
+              </tr>
+              <tr style="border-bottom:1px solid #ede8df">
+                <td style="padding:8px 0;color:#7a7a74">Stripe sub</td>
+                <td style="padding:8px 0;font-family:monospace;font-size:11px">${subscriptionId || 'Pending'}</td>
+              </tr>
+              <tr style="border-bottom:1px solid #ede8df">
+                <td style="padding:8px 0;color:#7a7a74">Nutripath 1st payment</td>
+                <td style="padding:8px 0;color:#166534;font-weight:500">$137.50 released</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;color:#7a7a74">Status</td>
+                <td style="padding:8px 0;color:#92400e;font-weight:500">Awaiting health profile</td>
+              </tr>
+            </table>
+            <p style="font-size:11px;color:#7a7a74;margin:16px 0 0;font-style:italic">
+              Health content is stored securely in Supabase — not included here.
+            </p>
+          </div>
+        </div>`,
+      }),
+
+    ]);
+
     console.log(`GeneThrive: All emails sent for ${clientId}`);
   } catch (err) {
     console.error('GeneThrive: Email sending failed —', err.message);

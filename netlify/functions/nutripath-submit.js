@@ -8,14 +8,17 @@
  * WHAT IT DOES:
  *   1. Verifies Nutripath's session token
  *   2. Looks up Shopify order by Client ID
- *   3. Releases second Nutripath payment ($137.50) via Stripe
- *   4. Emails DNA results PDF to naturopath
- *   5. Emails results notification to GeneThrive ops
- *   6. Notifies client that results are ready
- *   7. Tags Shopify order: dna-results-received
+ *   3. Saves DNA results to Supabase dna_results table
+ *   4. Stamps dna_results_received_at on order_sla + advances SLA stage
+ *   5. Releases second Nutripath payment ($137.50) via Stripe
+ *   6. Emails DNA results PDF to naturopath
+ *   7. Emails results notification to GeneThrive ops
+ *   8. Notifies client that results are ready
+ *   9. Tags Shopify order: dna-results-received
  *
  * ENVIRONMENT VARIABLES:
  *   PARTNER_TOKEN_SECRET
+ *   SUPABASE_URL / SUPABASE_SERVICE_KEY
  *   STRIPE_SECRET_KEY
  *   STRIPE_ACCOUNT_NUTRIPATH
  *   SHOPIFY_STORE_DOMAIN / SHOPIFY_ADMIN_TOKEN
@@ -28,6 +31,7 @@ const crypto     = require('crypto');
 const Stripe     = require('stripe');
 const nodemailer = require('nodemailer');
 const { shopifyFetch } = require('./shopify-token');
+const { advanceStage } = require('./sla-stage');
 
 // Inline token verification (mirrors partner-auth.js)
 function verifyToken(token) {
@@ -53,6 +57,41 @@ function createTransporter() {
     secure: false,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
+}
+
+// ── Supabase REST helpers ────────────────────────────────────────────────────
+async function supabasePatch(path, body) {
+  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        process.env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      'Prefer':        'return=minimal',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase PATCH ${path} failed (${res.status}): ${text}`);
+  }
+}
+
+async function supabaseUpsert(table, body) {
+  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        process.env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      'Prefer':        'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase upsert ${table} failed (${res.status}): ${text}`);
+  }
 }
 
 exports.handler = async function (event) {
@@ -113,10 +152,51 @@ exports.handler = async function (event) {
     };
   }
 
+  const now       = new Date().toISOString();
   const orderDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
   const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
-  // 4. Release second Nutripath payment ($137.50)
+  // 4. Save DNA results to Supabase dna_results table
+  //    Upsert keyed on client_id — safe to retry.
+  //    result_data stores the raw PDF + lab notes as JSONB.
+  //    Barbara-only access enforced via RLS; service_role key bypasses for write.
+  try {
+    await supabaseUpsert('dna_results', {
+      client_id:          clientId,
+      received_at:        now,
+      sequencing_partner: 'NutriPath US Lab',
+      result_data: {
+        pdf_base64:   pdfBase64,   // Barbara downloads via her portal
+        lab_notes:    notes,
+        submitted_by: 'nutripath',
+        submitted_at: now,
+      },
+    });
+    console.log(`GeneThrive: DNA results saved to Supabase for ${clientId}`);
+  } catch (err) {
+    console.error('GeneThrive: Supabase dna_results save failed —', err.message);
+    // Fatal — Nutripath portal must retry rather than losing the results
+    return {
+      statusCode: 500,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: 'Failed to save DNA results. Please try again.' }),
+    };
+  }
+
+  // 5. Stamp dna_results_received_at on order_sla + advance SLA stage to 'sequencing'
+  //    Non-fatal — SLA tracking failure must not block the order flow.
+  try {
+    await supabasePatch(
+      `/order_sla?client_id=eq.${encodeURIComponent(clientId)}`,
+      { dna_results_received_at: now }
+    );
+    await advanceStage(clientId, 'sequencing');
+    console.log(`GeneThrive: order_sla stamped dna_results_received_at for ${clientId}`);
+  } catch (err) {
+    console.error('GeneThrive: order_sla update failed (non-fatal) —', err.message);
+  }
+
+  // 6. Release second Nutripath payment ($137.50)
   if (process.env.STRIPE_ACCOUNT_NUTRIPATH && process.env.STRIPE_SECRET_KEY) {
     try {
       const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -134,7 +214,7 @@ exports.handler = async function (event) {
     }
   }
 
-  // 5. Send emails
+  // 7. Send emails
   const transporter = createTransporter();
 
   try {
@@ -248,7 +328,7 @@ exports.handler = async function (event) {
     console.error('GeneThrive: Email sending failed —', err.message);
   }
 
-  // 6. Tag Shopify order
+  // 8. Tag Shopify order
   try {
     const existingTags = order.tags ? order.tags.split(', ') : [];
     existingTags.push('dna-results-received');
