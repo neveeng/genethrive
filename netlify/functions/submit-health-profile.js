@@ -156,7 +156,47 @@ exports.handler = async function (event) {
     console.warn('GeneThrive: Shopify tag update failed —', err.message);
   }
 
-  // 5. Send emails
+  // 5. Look up client address from order_sla (saved at payment time)
+  //    The health profile form doesn't send address — we fetch it from Supabase.
+  let clientName    = clientDetails.name    || '';
+  let clientPhone   = clientDetails.phone   || '';
+  let clientAddress = clientDetails.address || '';
+  let clientSuburb  = clientDetails.suburb  || '';
+  let clientState   = clientDetails.state   || '';
+  let clientPostcode= clientDetails.postcode|| '';
+
+  try {
+    const slaRes = await supabaseRequest(
+      `/order_sla?client_id=eq.${encodeURIComponent(clientId)}&select=client_email,client_phone&limit=1`
+    );
+    if (slaRes.ok && slaRes.data?.[0]) {
+      clientPhone = clientPhone || slaRes.data[0].client_phone || '';
+    }
+  } catch (err) {
+    console.warn('GeneThrive: Could not fetch order_sla for address —', err.message);
+  }
+
+  // Also try Shopify order for the full shipping address
+  try {
+    const shopifyRes  = await shopifyFetch(
+      `/admin/api/2024-01/orders.json?tag=client-id:${encodeURIComponent(clientId)}&status=any&limit=1`
+    );
+    const shopifyData = await shopifyRes.json();
+    const shopifyOrder = shopifyData.orders?.[0];
+    if (shopifyOrder?.shipping_address) {
+      const sa = shopifyOrder.shipping_address;
+      clientName     = clientName     || `${sa.first_name || ''} ${sa.last_name || ''}`.trim();
+      clientPhone    = clientPhone    || sa.phone    || '';
+      clientAddress  = clientAddress  || sa.address1 || '';
+      clientSuburb   = clientSuburb   || sa.city     || '';
+      clientState    = clientState    || sa.province || '';
+      clientPostcode = clientPostcode || sa.zip      || '';
+    }
+  } catch (err) {
+    console.warn('GeneThrive: Could not fetch Shopify address —', err.message);
+  }
+
+  // 6. Send emails
   try {
     const transporter = createTransporter();
     const orderDate   = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -226,10 +266,10 @@ exports.handler = async function (event) {
                 <div style="font-size:20px;font-weight:700;margin-bottom:12px">${clientId}</div>
                 <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:8px">SHIP TO</div>
                 <div style="font-size:14px;line-height:1.8;color:#1c1c1a">
-                  <strong>${clientDetails.name || '—'}</strong><br>
-                  ${clientDetails.address || '—'}<br>
-                  ${clientDetails.suburb || ''} ${clientDetails.state || ''} ${clientDetails.postcode || ''}<br>
-                  ${clientDetails.phone || '—'}
+                  <strong>${clientName || '—'}</strong><br>
+                  ${clientAddress || '—'}<br>
+                  ${clientSuburb} ${clientState} ${clientPostcode}<br>
+                  ${clientPhone || '—'}
                 </div>
               </div>
               <p style="font-size:13px;font-weight:600;color:#1c1c1a;margin:0 0 8px">Important:</p>
