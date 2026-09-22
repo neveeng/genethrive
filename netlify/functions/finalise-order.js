@@ -8,32 +8,35 @@
  * WHAT IT DOES:
  *   1. Validates env vars and verifies PaymentIntent is paid
  *   2. Generates Client ID: GT-{random}-{hash}
- *   3. Transfers $275 to Nutripath via Stripe Connect
- *   4. Transfers $95 to Ops via Stripe Connect
- *   5. Creates $200/month Stripe Subscription on the saved card
- *   6. Creates a Shopify order via Admin API for records
- *   7. Generates Ops PDF + Lab PDF
- *   8. Emails PDFs to ops + lab + sends client confirmation
- *   9. Returns clientId to the browser for the confirmation page
+ *   3. Transfers $137.50 to NutriPath via Stripe Connect (1st half — kit dispatch)
+ *   4. Creates $200/month Stripe Subscription on the saved card
+ *   5. Creates a Shopify order + customer record
+ *   6. Creates order_sla row in Supabase
+ *   7. Emails client (confirmation + health profile link) + ops (status only)
+ *   8. SMS client with health profile link
+ *   9. Returns clientId to the browser
+ *
+ * PRIVACY:
+ *   - Health data is NOT collected here — it comes later via submit-health-profile.js
+ *   - No health content is sent to Shopify, ops email, or anywhere except Supabase
+ *   - Ops email is status-only (client ID, order number, payment status)
  *
  * ENVIRONMENT VARIABLES REQUIRED:
- *   STRIPE_SECRET_KEY          = sk_test_xxxx (test) or sk_live_xxxx (live)
- *   STRIPE_ACCOUNT_NUTRIPATH   = acct_xxxx  (Stripe Connect account)
- *   STRIPE_ACCOUNT_OPS         = acct_xxxx  (Stripe Connect account)
- *   STRIPE_PRICE_MONTHLY       = price_xxxx (recurring $200/mo product)
- *   SHOPIFY_STORE_DOMAIN       = yourstore.myshopify.com (no https://)
- *   SHOPIFY_ADMIN_TOKEN        = shpat_xxxx
- *   SMTP_HOST                  = smtp.gmail.com
- *   SMTP_PORT                  = 587
- *   SMTP_USER                  = your@email.com
- *   SMTP_PASS                  = your-app-password
- *   EMAIL_FROM                 = GeneThrive <orders@genethrive.com>
- *   EMAIL_OPS                  = ops@genethrive.com
- *   EMAIL_LAB                  = lab@nutripath.com.au
- *   EMAIL_REPLY_TO             = support@genethrive.com
- *   SINCH_API_KEY              = from Sinch portal (for client SMS after payment)
- *   SINCH_API_SECRET           = from Sinch portal
- *   SINCH_SENDER_ID            = GeneThrive (or provisioned number)
+ *   STRIPE_SECRET_KEY            sk_live_... (or sk_test_... in test mode)
+ *   STRIPE_ACCOUNT_NUTRIPATH     acct_... (Stripe Connect)
+ *   STRIPE_PRICE_MONTHLY         price_... (recurring $200/mo product)
+ *   PRICE_NUTRIPATH_1_CENTS      13750 ($137.50 — 1st NutriPath payment)
+ *   SHOPIFY_STORE_DOMAIN         YourWebsite.myshopify.com
+ *   SHOPIFY_ADMIN_TOKEN          shpat_...
+ *   SUPABASE_URL                 https://xxx.supabase.co
+ *   SUPABASE_SERVICE_KEY         service_role key (NOT anon)
+ *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+ *   EMAIL_FROM                   GeneThrive <no-reply@genethrive.com.au>
+ *   EMAIL_OPS                    Paul's email
+ *   EMAIL_REPLY_TO               hello@genethrive.com.au
+ *   SINCH_API_KEY                from Sinch portal (for SMS)
+ *   SINCH_API_SECRET             from Sinch portal
+ *   SINCH_SENDER_ID              GeneThrive (or provisioned number)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -43,7 +46,8 @@ const nodemailer = require('nodemailer');
 const { shopifyFetch } = require('./shopify-token');
 const { sendSmsSafe, formatAustralianPhone } = require('./sinch-sms');
 
-// Supabase REST helper
+// ── Supabase REST helper ──────────────────────────────────────────────────────
+
 async function supabaseRequest(path, method = 'GET', body = null) {
   const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
     method,
@@ -63,23 +67,18 @@ async function supabaseRequest(path, method = 'GET', body = null) {
 function validateEnv() {
   const required = [
     'STRIPE_SECRET_KEY',
-    'SHOPIFY_SHOP',
-    'SHOPIFY_CLIENT_ID',
-    'SHOPIFY_CLIENT_SECRET',
+    'SHOPIFY_STORE_DOMAIN', 'SHOPIFY_ADMIN_TOKEN',
+    'SUPABASE_URL', 'SUPABASE_SERVICE_KEY',
     'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS',
-    'EMAIL_FROM', 'EMAIL_OPS', 'EMAIL_LAB', 'EMAIL_REPLY_TO',
+    'EMAIL_FROM', 'EMAIL_OPS', 'EMAIL_REPLY_TO',
   ];
   const missing = required.filter(k => !process.env[k]);
   if (missing.length > 0) {
     console.error('GeneThrive: Missing env vars —', missing.join(', '));
     return false;
   }
-
-  // Warn about Stripe Connect vars (non-fatal — transfers skipped if missing)
-  if (!process.env.STRIPE_ACCOUNT_NUTRIPATH) console.warn('GeneThrive: STRIPE_ACCOUNT_NUTRIPATH not set — Nutripath transfer will be skipped');
-  if (!process.env.STRIPE_ACCOUNT_OPS)       console.warn('GeneThrive: STRIPE_ACCOUNT_OPS not set — Ops transfer will be skipped');
+  if (!process.env.STRIPE_ACCOUNT_NUTRIPATH) console.warn('GeneThrive: STRIPE_ACCOUNT_NUTRIPATH not set — NutriPath transfer will be skipped');
   if (!process.env.STRIPE_PRICE_MONTHLY)     console.warn('GeneThrive: STRIPE_PRICE_MONTHLY not set — subscription will be skipped');
-
   return true;
 }
 
@@ -95,204 +94,7 @@ function generateClientId(paymentIntentId) {
   return `GT-${rand}-${hash}`;
 }
 
-// ── PDF helpers ───────────────────────────────────────────────────────────────
-
-const COLORS = {
-  sage:   rgb(0.29, 0.40, 0.25),
-  ink:    rgb(0.11, 0.11, 0.10),
-  soft:   rgb(0.48, 0.48, 0.45),
-  border: rgb(0.84, 0.81, 0.76),
-  cream:  rgb(0.97, 0.96, 0.93),
-  white:  rgb(1, 1, 1),
-  amber:  rgb(0.69, 0.54, 0.31),
-};
-
-function drawRule(page, y) {
-  page.drawLine({ start: { x: 40, y }, end: { x: 555, y }, thickness: 0.5, color: COLORS.border });
-}
-
-function drawRow(page, fonts, y, label, value) {
-  // Strip any characters outside WinAnsi range to avoid PDF encoding errors
-  const safeValue = String(value || '—').replace(/[^\x00-\xFF]/g, '?');
-  const safeLabel = String(label).replace(/[^\x00-\xFF]/g, '?');
-  page.drawText(safeLabel, { x: 40, y, size: 10, font: fonts.regular, color: COLORS.soft });
-  page.drawText(safeValue, { x: 220, y, size: 10, font: fonts.regular, color: COLORS.ink, maxWidth: 330 });
-  return y - 18;
-}
-
-function drawSection(page, fonts, y, text) {
-  page.drawRectangle({ x: 40, y: y - 4, width: 515, height: 20, color: COLORS.cream });
-  page.drawText(text.toUpperCase(), { x: 46, y, size: 8, font: fonts.bold, color: COLORS.sage, characterSpacing: 1 });
-  return y - 26;
-}
-
-function drawHeader(page, fonts, title, subtitle) {
-  page.drawRectangle({ x: 0, y: 782, width: 595, height: 60, color: COLORS.sage });
-  page.drawText('GENETHRIVE', { x: 40, y: 808, size: 16, font: fonts.bold, color: COLORS.white, characterSpacing: 3 });
-  page.drawText('Personalised Nutrition', { x: 40, y: 793, size: 9, font: fonts.regular, color: rgb(0.75, 0.87, 0.72) });
-  page.drawText(title, { x: 40, y: 758, size: 14, font: fonts.bold, color: COLORS.ink });
-  if (subtitle) page.drawText(subtitle, { x: 40, y: 742, size: 9, font: fonts.regular, color: COLORS.soft });
-  drawRule(page, 734);
-  return 718;
-}
-
-function drawFooter(page, fonts, text) {
-  drawRule(page, 44);
-  page.drawText(text, { x: 40, y: 30, size: 8, font: fonts.regular, color: COLORS.soft });
-  page.drawText('CONFIDENTIAL', { x: 490, y: 30, size: 8, font: fonts.bold, color: COLORS.soft, characterSpacing: 1 });
-}
-
-async function generateOpsPdf(clientId, clientDetails, healthData, orderDate) {
-  const pdfDoc = await PDFDocument.create();
-  const page   = pdfDoc.addPage([595, 842]);
-  const fonts  = {
-    regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
-    bold:    await pdfDoc.embedFont(StandardFonts.HelveticaBold),
-  };
-
-  let y = drawHeader(page, fonts, 'Order Summary — Ops Copy', `${orderDate}  |  INTERNAL USE ONLY`);
-
-  y = drawSection(page, fonts, y, 'Client Details');
-  y -= 4;
-  y = drawRow(page, fonts, y, 'Client ID',   clientId);
-  y = drawRow(page, fonts, y, 'Name',        clientDetails.name);
-  y = drawRow(page, fonts, y, 'Email',       clientDetails.email);
-  y = drawRow(page, fonts, y, 'Phone',       clientDetails.phone);
-  y = drawRow(page, fonts, y, 'Address',
-    `${clientDetails.address}, ${clientDetails.suburb} ${clientDetails.state} ${clientDetails.postcode}`
-  );
-
-  y -= 10; drawRule(page, y); y -= 20;
-
-  y = drawSection(page, fonts, y, 'Payment Breakdown — $575.00');
-  y -= 4;
-  y = drawRow(page, fonts, y, 'Nutripath (DNA lab)',  '$275.00 — transferred immediately');
-  y = drawRow(page, fonts, y, 'Ops / GeneThrive',     '$95.00 — transferred immediately');
-  y = drawRow(page, fonts, y, 'Pharmacist',           '$140.00 — release on pickup confirmation');
-  y = drawRow(page, fonts, y, 'Naturopath',           '$65.00 — release on CIL completion');
-  y -= 6;
-  page.drawText('Monthly recurring: $200.00 auto-debit via Stripe Subscription', {
-    x: 40, y, size: 9, font: fonts.bold, color: COLORS.amber,
-  });
-  y -= 20;
-
-  y -= 10; drawRule(page, y); y -= 20;
-
-  y = drawSection(page, fonts, y, 'Health Profile');
-  y -= 4;
-  // Log health data keys for debugging
-  console.log('GeneThrive: Health data keys in PDF —', Object.keys(healthData));
-
-  const h = healthData || {};
-  const healthRows = [
-    ['Pregnant/breastfeeding', h.health_pregnant_breastfeeding || h['health_pregnant_breastfeeding']],
-    ['Conditions',   h.health_conditions === 'Yes' ? (h.health_conditions_detail || 'Yes — no detail') : (h.health_conditions || 'No')],
-    ['Medications',  h.health_medications === 'Yes' ? (h.health_medications_detail || 'Yes — no detail') : (h.health_medications || 'No')],
-    ['Allergies',    h.health_allergies === 'Yes' ? (h.health_allergies_detail || 'Yes — no detail') : (h.health_allergies || 'No')],
-    ['Gender',       h.health_gender],
-    ['Age',          h.health_age ? `${h.health_age} years` : '—'],
-    ['Fasting',      h.health_fasting === 'Yes' ? `Yes — ${h.health_fasting_detail || 'protocol not specified'}` : (h.health_fasting || 'No')],
-  ];
-  for (const [label, value] of healthRows) {
-    y = drawRow(page, fonts, y, label, value || '—');
-    if (y < 80) break;
-  }
-
-  y -= 10; drawRule(page, y); y -= 20;
-
-  y = drawSection(page, fonts, y, 'Milestone Checklist');
-  y -= 4;
-  const milestones = [
-    '[ ]  DNA kit dispatched to client',
-    '[x]  Nutripath payment released — $275.00 — auto-transferred',
-    '[x]  Ops payment retained — $95.00 — auto-transferred',
-    '[ ]  Client pickup confirmed -> trigger release-payment (pharmacist $140.00)',
-    '[ ]  CIL consultation completed -> trigger release-payment (naturopath $65.00)',
-    '[x]  Month 2 Stripe auto-debit — $200.00 — subscription created',
-  ];
-  for (const line of milestones) {
-    page.drawText(line, { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
-    y -= 16;
-  }
-
-  drawFooter(page, fonts, `GeneThrive  |  Ops copy  |  ${clientId}  |  ${orderDate}`);
-  return pdfDoc.save();
-}
-
-async function generateLabPdf(clientId, clientDetails, healthData, orderDate) {
-  const pdfDoc = await PDFDocument.create();
-  const page   = pdfDoc.addPage([595, 842]);
-  const fonts  = {
-    regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
-    bold:    await pdfDoc.embedFont(StandardFonts.HelveticaBold),
-  };
-
-  let y = drawHeader(page, fonts, 'DNA Test Order — Nutripath Lab', `${orderDate}  |  CONFIDENTIAL`);
-
-  // Client ID block
-  page.drawRectangle({ x: 40, y: y - 36, width: 515, height: 48, color: COLORS.cream });
-  page.drawText('CLIENT ID', { x: 52, y: y - 14, size: 8, font: fonts.bold, color: COLORS.sage, characterSpacing: 1 });
-  page.drawText(clientId, { x: 52, y: y - 30, size: 20, font: fonts.bold, color: COLORS.ink });
-  y -= 58;
-
-  drawRule(page, y); y -= 20;
-
-  // Client details — full PII for kit dispatch
-  y = drawSection(page, fonts, y, 'Client Details — Ship DNA Kit To');
-  y -= 4;
-  y = drawRow(page, fonts, y, 'Full name',  clientDetails.name);
-  y = drawRow(page, fonts, y, 'Email',      clientDetails.email);
-  y = drawRow(page, fonts, y, 'Phone',      clientDetails.phone);
-  y = drawRow(page, fonts, y, 'Address',    clientDetails.address);
-  y = drawRow(page, fonts, y, 'Suburb',     clientDetails.suburb);
-  y = drawRow(page, fonts, y, 'State',      clientDetails.state);
-  y = drawRow(page, fonts, y, 'Postcode',   clientDetails.postcode);
-  y = drawRow(page, fonts, y, 'Country',    'Australia');
-
-  y -= 10; drawRule(page, y); y -= 20;
-
-  // Health profile
-  y = drawSection(page, fonts, y, 'Health Profile');
-  y -= 4;
-  const hd = healthData || {};
-  const rows = [
-    ['Pregnant/breastfeeding', hd.health_pregnant_breastfeeding],
-    ['Conditions',   hd.health_conditions === 'Yes' ? (hd.health_conditions_detail || 'Yes') : (hd.health_conditions || 'No')],
-    ['Haematological', hd.health_conditions2],
-    ['Medications',  hd.health_medications === 'Yes' ? (hd.health_medications_detail || 'Yes') : (hd.health_medications || 'No')],
-    ['Allergies',    hd.health_allergies === 'Yes' ? (hd.health_allergies_detail || 'Yes') : (hd.health_allergies || 'No')],
-    ['Gender',       hd.health_gender],
-    ['Age',          hd.health_age ? `${hd.health_age} years` : '—'],
-    ['Fasting',      hd.health_fasting === 'Yes' ? `Yes — ${hd.health_fasting_detail || 'protocol not specified'}` : (hd.health_fasting || 'No')],
-  ];
-  for (const [label, value] of rows) {
-    y = drawRow(page, fonts, y, label, value || '—');
-    if (y < 120) break;
-  }
-
-  y -= 10; drawRule(page, y); y -= 20;
-
-  // Instructions
-  y = drawSection(page, fonts, y, 'Instructions');
-  y -= 4;
-  const siteUrl = (process.env.SITE_URL || process.env.URL).replace(/\/$/, '');
-  const instructions = [
-    `1.  Ship the DNA mouth swab kit to the client address above.`,
-    `2.  Use Client ID ${clientId} on all kit labelling and correspondence.`,
-    `3.  Once results are ready, POST to GeneThrive using the Client ID only.`,
-    `4.  Results endpoint: ${siteUrl}/.netlify/functions/dispatch-results`,
-    `5.  Do not include client name or address in DNA result communications.`,
-  ];
-  for (const line of instructions) {
-    page.drawText(line, { x: 46, y, size: 9, font: fonts.regular, color: COLORS.ink });
-    y -= 16;
-  }
-
-  drawFooter(page, fonts, `GeneThrive  |  Nutripath copy  |  ${clientId}  |  ${orderDate}`);
-  return pdfDoc.save();
-}
-
-// ── Email ─────────────────────────────────────────────────────────────────────
+// ── Email transporter ─────────────────────────────────────────────────────────
 
 function createTransporter() {
   return nodemailer.createTransport({
@@ -316,7 +118,6 @@ exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: corsHeaders, body: '' };
   if (event.httpMethod !== 'POST')   return { statusCode: 405, headers: corsHeaders, body: 'Method not allowed' };
 
-  // Validate env vars upfront
   if (!validateEnv()) {
     return {
       statusCode: 500,
@@ -327,15 +128,12 @@ exports.handler = async function (event) {
 
   const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-  // Parse request
-  let paymentIntentId, clientDetails, healthData, createAccount, password;
+  // Parse request — health data is NOT expected here
+  let paymentIntentId, clientDetails;
   try {
-    const body  = JSON.parse(event.body);
+    const body      = JSON.parse(event.body);
     paymentIntentId = body.paymentIntentId;
-    clientDetails   = body.clientDetails;
-    healthData      = body.healthData || {};
-    createAccount   = body.createAccount || false;
-    password        = body.password || null;
+    clientDetails   = body.clientDetails;   // { name, email, phone, address, suburb, state, postcode }
   } catch {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
@@ -361,180 +159,133 @@ exports.handler = async function (event) {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Could not verify payment' }) };
   }
 
-  const customerId = paymentIntent.customer;
-  const clientId   = generateClientId(paymentIntentId);
-  const orderDate  = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+  const stripeCustomerId = paymentIntent.customer;
+  const clientId         = generateClientId(paymentIntentId);
+  const orderDate        = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
 
   console.log(`GeneThrive: Finalising order — Client ID ${clientId}`);
-  console.log(`GeneThrive: Customer ID — ${customerId}`);
 
-  // ── 2. Transfer $137.50 to Nutripath (first half — for kit dispatch) ─────────
-  // Second half ($137.50) is released by nutripath-submit.js when DNA results
-  // are uploaded via the Nutripath portal.
+  // ── 2. Transfer $137.50 to NutriPath (1st half — for kit dispatch) ───────────
+  // 2nd half ($137.50) released by nutripath-submit.js when DNA results are uploaded.
   if (process.env.STRIPE_ACCOUNT_NUTRIPATH) {
     try {
       const t = await stripe.transfers.create({
-        amount:      parseInt(process.env.PRICE_NUTRIPATH_1_CENTS || "13750"),
+        amount:      parseInt(process.env.PRICE_NUTRIPATH_1_CENTS || '13750'),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_NUTRIPATH,
         description: `GeneThrive ${clientId} — DNA lab payment (1st half — kit dispatch)`,
         metadata:    { clientId, stage: 'kit-dispatch' },
       });
-      console.log(`GeneThrive: $137.50 transferred to Nutripath (1st half) — transfer ID ${t.id}`);
+      console.log(`GeneThrive: $137.50 transferred to NutriPath — ${t.id}`);
     } catch (err) {
-      console.error('GeneThrive: Nutripath 1st transfer failed —', err.message);
-      console.error('GeneThrive: STRIPE_ACCOUNT_NUTRIPATH value —', process.env.STRIPE_ACCOUNT_NUTRIPATH);
+      console.error('GeneThrive: NutriPath 1st transfer failed —', err.message);
     }
-  } else {
-    console.warn('GeneThrive: Skipping Nutripath transfer — STRIPE_ACCOUNT_NUTRIPATH not set');
   }
 
-  // ── 3. Transfer $95 to Ops ───────────────────────────────────────────────────
-  if (process.env.STRIPE_ACCOUNT_OPS) {
-    try {
-      const t = await stripe.transfers.create({
-        amount:      parseInt(process.env.PRICE_OPS_CENTS || "9500"),
-        currency:    'aud',
-        destination: process.env.STRIPE_ACCOUNT_OPS,
-        description: `GeneThrive ${clientId} — ops fee`,
-        metadata:    { clientId },
-      });
-      console.log(`GeneThrive: $95 transferred to Ops — transfer ID ${t.id}`);
-    } catch (err) {
-      console.error('GeneThrive: Ops transfer failed —', err.message);
-      console.error('GeneThrive: STRIPE_ACCOUNT_OPS value —', process.env.STRIPE_ACCOUNT_OPS);
-    }
-  } else {
-    console.warn('GeneThrive: Skipping Ops transfer — STRIPE_ACCOUNT_OPS not set');
-  }
-
-  // ── 4. Create $200/month subscription ────────────────────────────────────────
+  // ── 3. Create $200/month subscription ────────────────────────────────────────
   let subscriptionId = null;
-  if (process.env.STRIPE_PRICE_MONTHLY && customerId) {
+  if (process.env.STRIPE_PRICE_MONTHLY && stripeCustomerId) {
     try {
       const paymentMethod = paymentIntent.payment_method;
-      console.log(`GeneThrive: Payment method — ${paymentMethod}`);
 
-      // Attach payment method to customer
       try {
-        await stripe.paymentMethods.attach(paymentMethod, { customer: customerId });
-        console.log('GeneThrive: Payment method attached to customer');
+        await stripe.paymentMethods.attach(paymentMethod, { customer: stripeCustomerId });
       } catch (attachErr) {
-        // Already attached is fine
-        if (!attachErr.message.includes('already been attached')) {
-          throw attachErr;
-        }
-        console.log('GeneThrive: Payment method already attached — continuing');
+        if (!attachErr.message.includes('already been attached')) throw attachErr;
       }
 
-      // Set as default + store clientId in metadata
-      await stripe.customers.update(customerId, {
+      await stripe.customers.update(stripeCustomerId, {
         invoice_settings: { default_payment_method: paymentMethod },
         metadata: { clientId },
       });
-      console.log('GeneThrive: Customer updated with default payment method and clientId');
 
-      // Create subscription with 30-day trial
       const subscription = await stripe.subscriptions.create({
-        customer:           customerId,
-        items:              [{ price: process.env.STRIPE_PRICE_MONTHLY }],
-        trial_period_days:  30,
-        metadata:           { clientId, product: 'GeneThrive Monthly Vitamins' },
+        customer:          stripeCustomerId,
+        items:             [{ price: process.env.STRIPE_PRICE_MONTHLY }],
+        trial_period_days: 30,
+        metadata:          { clientId, product: 'GeneThrive Monthly Vitamins' },
       });
 
       subscriptionId = subscription.id;
       console.log(`GeneThrive: Subscription created — ${subscriptionId}`);
     } catch (err) {
       console.error('GeneThrive: Subscription creation failed —', err.message);
-      console.error('GeneThrive: STRIPE_PRICE_MONTHLY value —', process.env.STRIPE_PRICE_MONTHLY);
     }
-  } else {
-    console.warn('GeneThrive: Skipping subscription — STRIPE_PRICE_MONTHLY not set or no customer');
   }
 
-  // ── 5. Create Shopify order ──────────────────────────────────────────────────
+  // ── 4. Create Shopify order ──────────────────────────────────────────────────
+  // NOTE: health data is NOT stored in Shopify — it goes to Supabase via submit-health-profile.js
   let shopifyOrderNumber = null;
   let shopifyOrderId     = null;
   try {
-    console.log(`GeneThrive: Creating Shopify order for ${clientDetails.email}`);
+    const nameParts = clientDetails.name.split(' ');
+    const firstName = nameParts[0];
+    const lastName  = nameParts.slice(1).join(' ') || '.';
 
-    const shopifyRes = await shopifyFetch(
-      '/admin/api/2024-01/orders.json',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          order: {
-            email:              clientDetails.email,
-            financial_status:   'paid',
-            fulfillment_status: null,
-            send_receipt:       false,
-            send_fulfillment_receipt: false,
-            tags:               `stripe-managed,client-id:${clientId},pdf-pending`,
-            note:               `Stripe PI: ${paymentIntentId} | Sub: ${subscriptionId || 'pending'}`,
-            note_attributes:    Object.entries(healthData).map(([name, value]) => ({ name, value: String(value) })),
-            line_items: [{
-              title:      'GeneThrive DNA + First Month Vitamins',
-              quantity:   1,
-              price:      '575.00',
-              requires_shipping: false,
-            }],
-            billing_address: {
-              first_name: clientDetails.name.split(' ')[0],
-              last_name:  clientDetails.name.split(' ').slice(1).join(' ') || '.',
-              address1:   clientDetails.address,
-              city:       clientDetails.suburb,
-              province:   clientDetails.state,
-              zip:        clientDetails.postcode,
-              country:    'AU',
-              phone:      clientDetails.phone,
-            },
-            shipping_address: {
-              first_name: clientDetails.name.split(' ')[0],
-              last_name:  clientDetails.name.split(' ').slice(1).join(' ') || '.',
-              address1:   clientDetails.address,
-              city:       clientDetails.suburb,
-              province:   clientDetails.state,
-              zip:        clientDetails.postcode,
-              country:    'AU',
-              phone:      clientDetails.phone,
-            },
+    const shopifyRes = await shopifyFetch('/admin/api/2024-01/orders.json', {
+      method: 'POST',
+      body: JSON.stringify({
+        order: {
+          email:                    clientDetails.email,
+          financial_status:         'paid',
+          fulfillment_status:       null,
+          send_receipt:             false,
+          send_fulfillment_receipt: false,
+          tags:                     `stripe-managed,client-id:${clientId},awaiting-health-profile`,
+          note:                     `Stripe PI: ${paymentIntentId} | Sub: ${subscriptionId || 'pending'}`,
+          line_items: [{
+            title:             'GeneThrive DNA + First Month Vitamins',
+            quantity:          1,
+            price:             '549.00',
+            requires_shipping: false,
+          }],
+          billing_address: {
+            first_name: firstName,
+            last_name:  lastName,
+            address1:   clientDetails.address,
+            city:       clientDetails.suburb,
+            province:   clientDetails.state,
+            zip:        clientDetails.postcode,
+            country:    'AU',
+            phone:      clientDetails.phone,
           },
-        }),
-      }
-    );
+          shipping_address: {
+            first_name: firstName,
+            last_name:  lastName,
+            address1:   clientDetails.address,
+            city:       clientDetails.suburb,
+            province:   clientDetails.state,
+            zip:        clientDetails.postcode,
+            country:    'AU',
+            phone:      clientDetails.phone,
+          },
+        },
+      }),
+    });
 
     const shopifyText = await shopifyRes.text();
     let shopifyData;
-    try {
-      shopifyData = JSON.parse(shopifyText);
-    } catch {
-      console.error('GeneThrive: Shopify returned non-JSON —', shopifyText.slice(0, 200));
-      throw new Error('Non-JSON response from Shopify');
-    }
+    try { shopifyData = JSON.parse(shopifyText); }
+    catch { throw new Error(`Non-JSON from Shopify: ${shopifyText.slice(0, 200)}`); }
 
     if (!shopifyRes.ok) {
-      console.error('GeneThrive: Shopify order API error — status', shopifyRes.status);
-      console.error('GeneThrive: Shopify error details —', JSON.stringify(shopifyData.errors || shopifyData));
+      console.error('GeneThrive: Shopify order error —', JSON.stringify(shopifyData.errors || shopifyData));
     } else {
       shopifyOrderNumber = shopifyData.order?.order_number;
       shopifyOrderId     = shopifyData.order?.id;
-      console.log(`GeneThrive: Shopify order #${shopifyOrderNumber} (ID: ${shopifyOrderId}) created for ${clientId}`);
+      console.log(`GeneThrive: Shopify order #${shopifyOrderNumber} created for ${clientId}`);
     }
   } catch (err) {
     console.error('GeneThrive: Shopify order creation failed —', err.message);
   }
 
-  // ── 5b. Create Shopify customer account ─────────────────────────────────────
-  // Always create a Shopify customer record for every order.
-  // We use send_email_invite: true so Shopify sends an activation email —
-  // the client clicks the link to set their password. No password needed here.
+  // ── 4b. Create / update Shopify customer ─────────────────────────────────────
   try {
-    console.log(`GeneThrive: Creating Shopify customer for ${clientDetails.email}`);
     const nameParts = clientDetails.name.split(' ');
     const firstName = nameParts[0];
     const lastName  = nameParts.slice(1).join(' ') || '.';
 
-    const accountRes = await shopifyFetch('/admin/api/2024-01/customers.json', {
+    const accountRes  = await shopifyFetch('/admin/api/2024-01/customers.json', {
       method: 'POST',
       body: JSON.stringify({
         customer: {
@@ -542,7 +293,7 @@ exports.handler = async function (event) {
           last_name:          lastName,
           email:              clientDetails.email,
           phone:              clientDetails.phone,
-          send_email_invite:  false, // We send our own confirmation — client activates via /account/register
+          send_email_invite:  false,
           send_email_welcome: false,
           tags:               `client-id:${clientId},genethrive-member`,
           note:               `Client ID: ${clientId} | Stripe PI: ${paymentIntentId}`,
@@ -563,65 +314,61 @@ exports.handler = async function (event) {
 
     const accountData = await accountRes.json();
 
-    if (!accountRes.ok) {
-      const errors = accountData.errors;
-      if (errors?.email) {
-        // Email already exists — update existing customer with client ID tag
-        console.warn(`GeneThrive: Customer already exists for ${clientDetails.email} — updating tags`);
-        const existingRes = await shopifyFetch(
-          `/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(clientDetails.email)}&limit=1`
-        );
-        const existingData = await existingRes.json();
-        const existing     = existingData.customers?.[0];
-        if (existing) {
-          const existingTags = existing.tags ? existing.tags.split(', ') : [];
-          if (!existingTags.includes(`client-id:${clientId}`)) {
-            existingTags.push(`client-id:${clientId}`);
-            await shopifyFetch(`/admin/api/2024-01/customers/${existing.id}.json`, {
-              method: 'PUT',
-              body:   JSON.stringify({ customer: { id: existing.id, tags: existingTags.join(', ') } }),
-            });
-            console.log(`GeneThrive: Existing customer ${existing.id} updated with client ID tag`);
-          }
+    if (!accountRes.ok && accountData.errors?.email) {
+      // Email already exists — just add the client ID tag
+      const existingRes  = await shopifyFetch(
+        `/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(clientDetails.email)}&limit=1`
+      );
+      const existingData = await existingRes.json();
+      const existing     = existingData.customers?.[0];
+      if (existing) {
+        const tags = existing.tags ? existing.tags.split(', ') : [];
+        if (!tags.includes(`client-id:${clientId}`)) {
+          tags.push(`client-id:${clientId}`);
+          await shopifyFetch(`/admin/api/2024-01/customers/${existing.id}.json`, {
+            method: 'PUT',
+            body:   JSON.stringify({ customer: { id: existing.id, tags: tags.join(', ') } }),
+          });
         }
-      } else {
-        console.error('GeneThrive: Customer creation failed —', JSON.stringify(errors || accountData));
+        console.log(`GeneThrive: Existing Shopify customer updated — ${clientId}`);
       }
     } else {
-      const customerId = accountData.customer?.id;
-      console.log(`GeneThrive: Shopify customer created — ID ${customerId} for ${clientDetails.email}`);
+      console.log(`GeneThrive: Shopify customer created — ${clientId}`);
     }
   } catch (err) {
-    console.error('GeneThrive: Customer creation error —', err.message);
-    // Non-fatal — order still processes
+    console.error('GeneThrive: Customer creation error (non-fatal) —', err.message);
   }
 
-  // ── 6. Create Supabase order_sla record ──────────────────────────────────────
+  // ── 5. Create Supabase order_sla record ──────────────────────────────────────
   try {
-    await supabaseRequest('/order_sla', 'POST', {
-      client_id:              clientId,
-      shopify_order_number:   shopifyOrderNumber ? String(shopifyOrderNumber) : null,
-      client_email:           clientDetails.email,
-      client_phone:           clientDetails.phone,
-      payment_received_at:    new Date().toISOString(),
+    const result = await supabaseRequest('/order_sla', 'POST', {
+      client_id:            clientId,
+      shopify_order_number: shopifyOrderNumber ? String(shopifyOrderNumber) : null,
+      client_email:         clientDetails.email,
+      client_phone:         clientDetails.phone,
+      payment_received_at:  new Date().toISOString(),
+      current_stage:        'health_profile',
+      stage_entered_at:     new Date().toISOString(),
     });
-    console.log(`GeneThrive: Supabase order_sla created for ${clientId}`);
+    if (!result.ok) console.error('GeneThrive: Supabase order_sla insert failed — status', result.status);
+    else console.log(`GeneThrive: Supabase order_sla created — ${clientId}`);
   } catch (err) {
     console.error('GeneThrive: Supabase order_sla insert failed —', err.message);
   }
 
-  // ── 7. Send emails ────────────────────────────────────────────────────────────
-  // PRIVACY RULE:
-  //   - Client email: payment confirmed + link to fill health profile
-  //   - Ops email: status notification only — NO health content, NO full details
-  //   - NutriPath is notified AFTER health profile is submitted (via submit-health-profile.js)
+  // ── 6. Build URLs ─────────────────────────────────────────────────────────────
   const storeUrl  = `https://${process.env.SHOPIFY_STORE_DOMAIN}`;
   const healthUrl = `${storeUrl}/pages/health-profile?id=${encodeURIComponent(clientId)}`;
 
+  // ── 7. Send emails ────────────────────────────────────────────────────────────
+  // PRIVACY RULE:
+  //   - Client email: confirmation + health profile link
+  //   - Ops email: status only — NO health content, NO clinical data
+  //   - NutriPath notified later by submit-health-profile.js (after profile is submitted)
   try {
     const transporter = createTransporter();
     const firstName   = clientDetails.name.split(' ')[0];
-    const initialAmt  = ((parseInt(process.env.PRICE_INITIAL_CENTS || '57500')) / 100).toFixed(2);
+    const initialAmt  = ((parseInt(process.env.PRICE_INITIAL_CENTS || '54900')) / 100).toFixed(2);
 
     await Promise.all([
 
@@ -631,109 +378,111 @@ exports.handler = async function (event) {
         to:      clientDetails.email,
         replyTo: process.env.EMAIL_REPLY_TO,
         subject: `Your GeneThrive order is confirmed — next step inside — ${clientId}`,
-        html: `<div style="font-family:sans-serif;color:#1c1c1a;max-width:520px">
-          <div style="background:#4a6741;padding:20px 24px;border-radius:8px 8px 0 0">
-            <span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
-          </div>
-          <div style="border:1px solid #d6cfc3;border-top:none;padding:28px;border-radius:0 0 8px 8px">
-            <h2 style="margin:0 0 14px;font-size:20px">Thank you, ${firstName}!</h2>
-            <p style="margin:0 0 16px;font-size:14px;color:#4a4a46;line-height:1.6">
-              Your payment of <strong>$${initialAmt}</strong> has been received.
-            </p>
-            <div style="background:#e8eee7;border-radius:8px;padding:16px;margin-bottom:20px">
-              <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:4px">YOUR REFERENCE</div>
-              <div style="font-size:18px;font-weight:700">${clientId}</div>
-              <div style="font-size:12px;color:#7a7a74;margin-top:4px">Keep this for any enquiries</div>
+        html: `
+          <div style="font-family:sans-serif;color:#1c1c1a;max-width:520px">
+            <div style="background:#4a6741;padding:20px 24px;border-radius:8px 8px 0 0">
+              <span style="color:#fff;font-size:16px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
             </div>
-
-            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin-bottom:20px">
-              <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">
-                Action required — complete your health profile
-              </div>
-              <p style="font-size:13px;color:#4a4a46;line-height:1.6;margin:0 0 14px">
-                To personalise your vitamin formula and dispatch your DNA swab kit,
-                we need a few details about your health. It takes about 2 minutes.
+            <div style="border:1px solid #d6cfc3;border-top:none;padding:28px;border-radius:0 0 8px 8px">
+              <h2 style="margin:0 0 14px;font-size:20px">Thank you, ${firstName}!</h2>
+              <p style="margin:0 0 16px;font-size:14px;color:#4a4a46;line-height:1.6">
+                Your payment of <strong>$${initialAmt}</strong> has been received.
               </p>
-              <a href="${healthUrl}"
-                 style="display:inline-block;padding:12px 24px;background:#4a6741;color:#fff;
-                        border-radius:8px;font-size:14px;font-weight:500;text-decoration:none">
-                Start your health journey →
-              </a>
+              <div style="background:#e8eee7;border-radius:8px;padding:16px;margin-bottom:20px">
+                <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:4px">YOUR REFERENCE</div>
+                <div style="font-size:18px;font-weight:700">${clientId}</div>
+                <div style="font-size:12px;color:#7a7a74;margin-top:4px">Keep this for any enquiries</div>
+              </div>
+              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin-bottom:20px">
+                <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">
+                  Action required — complete your health profile
+                </div>
+                <p style="font-size:13px;color:#4a4a46;line-height:1.6;margin:0 0 14px">
+                  To personalise your vitamin formula and dispatch your DNA swab kit,
+                  we need a few health details. It takes about 2 minutes.
+                </p>
+                <a href="${healthUrl}"
+                   style="display:inline-block;padding:12px 24px;background:#4a6741;color:#fff;
+                          border-radius:8px;font-size:14px;font-weight:500;text-decoration:none">
+                  Complete your health profile →
+                </a>
+              </div>
+              <p style="font-size:13px;font-weight:600;margin:0 0 10px">What happens next:</p>
+              <ol style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 20px;padding-left:18px">
+                <li><strong>Complete your health profile</strong> — link above</li>
+                <li>DNA swab kit dispatched to your address (3–5 business days)</li>
+                <li>Return the swab using the prepaid envelope</li>
+                <li>Our naturopath reviews your DNA results</li>
+                <li>Your personalised vitamins are compounded and dispatched</li>
+                <li>Your <strong>$200/month</strong> subscription begins 30 days from today</li>
+              </ol>
+              <p style="font-size:12px;color:#7a7a74;margin:0 0 8px">
+                To cancel your subscription visit
+                <a href="${storeUrl}/pages/cancel-subscription" style="color:#4a6741">our cancellation page</a>.
+              </p>
+              <p style="font-size:12px;color:#7a7a74;margin:0">
+                Questions? <a href="mailto:${process.env.EMAIL_REPLY_TO}" style="color:#4a6741">${process.env.EMAIL_REPLY_TO}</a>
+              </p>
             </div>
-
-            <p style="font-size:13px;font-weight:600;margin:0 0 10px">What happens next:</p>
-            <ol style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 20px;padding-left:18px">
-              <li><strong>Complete your health profile</strong> — link above</li>
-              <li>DNA swab kit dispatched to your address (3–5 business days)</li>
-              <li>Return the swab using the prepaid envelope</li>
-              <li>Our naturopath reviews your results</li>
-              <li>Your personalised vitamins are compounded and dispatched</li>
-              <li>Your <strong>$200/month</strong> subscription begins 30 days from today</li>
-            </ol>
-            <p style="font-size:12px;color:#7a7a74;margin:0 0 8px">
-              To cancel your subscription visit
-              <a href="${storeUrl}/pages/cancel-subscription" style="color:#4a6741">our cancellation page</a>.
-            </p>
-            <p style="font-size:12px;color:#7a7a74;margin:0">
-              Questions? <a href="mailto:${process.env.EMAIL_REPLY_TO}" style="color:#4a6741">${process.env.EMAIL_REPLY_TO}</a>
-            </p>
           </div>
-        </div>`,
+        `,
       }),
 
-      // Ops — status only, NO health content, NO client details beyond ID
+      // Ops — status only, NO health content
       transporter.sendMail({
         from:    process.env.EMAIL_FROM,
         to:      process.env.EMAIL_OPS,
         replyTo: process.env.EMAIL_REPLY_TO,
-        subject: `New order received — ${clientId} — awaiting health profile`,
-        html: `<div style="font-family:sans-serif;max-width:480px;color:#1c1c1a">
-          <div style="background:#1c1c1a;padding:16px 24px;border-radius:8px 8px 0 0">
-            <span style="color:#fff;font-size:15px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
-            <span style="color:rgba(255,255,255,0.5);font-size:12px;margin-left:10px">Ops — Status Only</span>
+        subject: `New order — ${clientId} — awaiting health profile`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;color:#1c1c1a">
+            <div style="background:#1c1c1a;padding:16px 24px;border-radius:8px 8px 0 0">
+              <span style="color:#fff;font-size:15px;font-weight:600;letter-spacing:2px">GENETHRIVE</span>
+              <span style="color:rgba(255,255,255,0.5);font-size:12px;margin-left:10px">Ops — Status Only</span>
+            </div>
+            <div style="border:1px solid #d6cfc3;border-top:none;padding:24px;border-radius:0 0 8px 8px">
+              <p style="font-size:14px;margin:0 0 16px;color:#4a4a46">
+                New order paid. Client sent health profile link.
+                NutriPath notified after profile is submitted.
+              </p>
+              <table style="width:100%;font-size:13px;border-collapse:collapse">
+                <tr style="border-bottom:1px solid #ede8df">
+                  <td style="padding:8px 0;color:#7a7a74;width:160px">Client ID</td>
+                  <td style="padding:8px 0;font-weight:600">${clientId}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #ede8df">
+                  <td style="padding:8px 0;color:#7a7a74">Shopify order</td>
+                  <td style="padding:8px 0">${shopifyOrderNumber ? '#' + shopifyOrderNumber : 'Pending'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #ede8df">
+                  <td style="padding:8px 0;color:#7a7a74">Stripe subscription</td>
+                  <td style="padding:8px 0;font-family:monospace;font-size:11px">${subscriptionId || 'Pending'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #ede8df">
+                  <td style="padding:8px 0;color:#7a7a74">NutriPath 1st payment</td>
+                  <td style="padding:8px 0;color:#166534;font-weight:500">$137.50 released</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#7a7a74">Stage</td>
+                  <td style="padding:8px 0;color:#92400e;font-weight:500">Awaiting health profile</td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#7a7a74;margin:16px 0 0;font-style:italic">
+                Health data is stored securely in Supabase (Barbara-only access) — not included here.
+              </p>
+            </div>
           </div>
-          <div style="border:1px solid #d6cfc3;border-top:none;padding:24px;border-radius:0 0 8px 8px">
-            <p style="font-size:14px;margin:0 0 16px;color:#4a4a46">
-              New order paid. Client has been sent the health profile link.
-              NutriPath will be notified once the profile is submitted.
-            </p>
-            <table style="width:100%;font-size:13px;border-collapse:collapse">
-              <tr style="border-bottom:1px solid #ede8df">
-                <td style="padding:8px 0;color:#7a7a74;width:160px">Client ID</td>
-                <td style="padding:8px 0;font-weight:600">${clientId}</td>
-              </tr>
-              <tr style="border-bottom:1px solid #ede8df">
-                <td style="padding:8px 0;color:#7a7a74">Shopify order</td>
-                <td style="padding:8px 0">${shopifyOrderNumber ? '#' + shopifyOrderNumber : 'Pending'}</td>
-              </tr>
-              <tr style="border-bottom:1px solid #ede8df">
-                <td style="padding:8px 0;color:#7a7a74">Stripe sub</td>
-                <td style="padding:8px 0;font-family:monospace;font-size:11px">${subscriptionId || 'Pending'}</td>
-              </tr>
-              <tr style="border-bottom:1px solid #ede8df">
-                <td style="padding:8px 0;color:#7a7a74">Nutripath 1st payment</td>
-                <td style="padding:8px 0;color:#166534;font-weight:500">$137.50 released</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 0;color:#7a7a74">Status</td>
-                <td style="padding:8px 0;color:#92400e;font-weight:500">Awaiting health profile</td>
-              </tr>
-            </table>
-            <p style="font-size:11px;color:#7a7a74;margin:16px 0 0;font-style:italic">
-              Health content is stored securely in Supabase — not included here.
-            </p>
-          </div>
-        </div>`,
+        `,
       }),
 
     ]);
 
-    console.log(`GeneThrive: All emails sent for ${clientId}`);
+    console.log(`GeneThrive: Emails sent — ${clientId}`);
   } catch (err) {
     console.error('GeneThrive: Email sending failed —', err.message);
   }
 
-  // ── 8. SMS to client with health profile link (non-fatal) ────────────────────
+  // ── 8. SMS client with health profile link (non-fatal) ───────────────────────
   if (clientDetails.phone) {
     const e164 = formatAustralianPhone(clientDetails.phone);
     await sendSmsSafe(
@@ -742,9 +491,10 @@ exports.handler = async function (event) {
       `Complete your health profile to get started: ${healthUrl}`,
       `order ${clientId}`
     );
-    console.log(`GeneThrive: Health profile SMS sent to client (${clientId})`);
+    console.log(`GeneThrive: SMS sent to client — ${clientId}`);
   }
 
+  // ── 9. Return to browser ──────────────────────────────────────────────────────
   return {
     statusCode: 200,
     headers: corsHeaders,
