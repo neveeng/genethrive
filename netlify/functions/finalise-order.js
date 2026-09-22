@@ -31,6 +31,9 @@
  *   EMAIL_OPS                  = ops@genethrive.com
  *   EMAIL_LAB                  = lab@nutripath.com.au
  *   EMAIL_REPLY_TO             = support@genethrive.com
+ *   SINCH_API_KEY              = from Sinch portal (for client SMS after payment)
+ *   SINCH_API_SECRET           = from Sinch portal
+ *   SINCH_SENDER_ID            = GeneThrive (or provisioned number)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -38,7 +41,7 @@ const Stripe     = require('stripe');
 const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
 const { shopifyFetch } = require('./shopify-token');
-const { advanceStage } = require('./sla-stage');
+const { sendSmsSafe, formatAustralianPhone } = require('./sinch-sms');
 
 // Supabase REST helper
 async function supabaseRequest(path, method = 'GET', body = null) {
@@ -272,7 +275,7 @@ async function generateLabPdf(clientId, clientDetails, healthData, orderDate) {
   // Instructions
   y = drawSection(page, fonts, y, 'Instructions');
   y -= 4;
-  const siteUrl = (process.env.SITE_URL || process.env.URL || 'https://genethrive.netlify.app').replace(/\/$/, '');
+  const siteUrl = (process.env.SITE_URL || process.env.URL).replace(/\/$/, '');
   const instructions = [
     `1.  Ship the DNA mouth swab kit to the client address above.`,
     `2.  Use Client ID ${clientId} on all kit labelling and correspondence.`,
@@ -602,7 +605,6 @@ exports.handler = async function (event) {
       client_phone:           clientDetails.phone,
       payment_received_at:    new Date().toISOString(),
     });
-    await advanceStage(clientId, 'health_profile');
     console.log(`GeneThrive: Supabase order_sla created for ${clientId}`);
   } catch (err) {
     console.error('GeneThrive: Supabase order_sla insert failed —', err.message);
@@ -613,7 +615,6 @@ exports.handler = async function (event) {
   //   - Client email: payment confirmed + link to fill health profile
   //   - Ops email: status notification only — NO health content, NO full details
   //   - NutriPath is notified AFTER health profile is submitted (via submit-health-profile.js)
-  const siteUrl   = (process.env.SITE_URL || process.env.URL ).replace(/\/$/, '');
   const storeUrl  = `https://${process.env.SHOPIFY_STORE_DOMAIN}`;
   const healthUrl = `${storeUrl}/pages/health-profile?id=${encodeURIComponent(clientId)}`;
 
@@ -730,6 +731,18 @@ exports.handler = async function (event) {
     console.log(`GeneThrive: All emails sent for ${clientId}`);
   } catch (err) {
     console.error('GeneThrive: Email sending failed —', err.message);
+  }
+
+  // ── 8. SMS to client with health profile link (non-fatal) ────────────────────
+  if (clientDetails.phone) {
+    const e164 = formatAustralianPhone(clientDetails.phone);
+    await sendSmsSafe(
+      e164,
+      `GeneThrive: Payment confirmed! Your reference: ${clientId}. ` +
+      `Complete your health profile to get started: ${healthUrl}`,
+      `order ${clientId}`
+    );
+    console.log(`GeneThrive: Health profile SMS sent to client (${clientId})`);
   }
 
   return {

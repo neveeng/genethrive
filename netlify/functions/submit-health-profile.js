@@ -30,7 +30,6 @@ const nodemailer = require('nodemailer');
 const { shopifyFetch } = require('./shopify-token');
 const { advanceStage } = require('./sla-stage');
 
-
 function createTransporter() {
   return nodemailer.createTransport({
     host:   process.env.SMTP_HOST,
@@ -121,15 +120,18 @@ exports.handler = async function (event) {
 
   console.log(`GeneThrive: Health profile saved to Supabase for ${clientId}`);
 
-  // 3. Update order_sla timestamp
+  // 3. Update order_sla timestamp + advance SLA stage
   await supabaseRequest(
     `/order_sla?client_id=eq.${encodeURIComponent(clientId)}`,
     'PATCH',
     { health_profile_submitted_at: new Date().toISOString() }
   );
-
-  // after the supabase patch that sets health_profile_submitted_at:
-await advanceStage(clientId, 'kit_dispatch');
+  try {
+    await advanceStage(clientId, 'kit_dispatch');
+    console.log(`GeneThrive: SLA stage advanced to kit_dispatch for ${clientId}`);
+  } catch (err) {
+    console.error('GeneThrive: advanceStage failed (non-fatal) —', err.message);
+  }
 
   // 4. Update Shopify order tag: add profile-complete, remove pdf-pending
   try {
