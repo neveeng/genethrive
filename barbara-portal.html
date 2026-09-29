@@ -336,6 +336,7 @@
         return;
       }
 
+      // FIX: response uses camelCase clientId / clientName / paidAt
       list.innerHTML = data.pending.map(row => `
         <div class="gt-client-item" onclick="loadClient('${row.clientId}')">
           <div class="gt-client-id">${row.clientId}</div>
@@ -387,20 +388,35 @@
   async function refreshClient() { if (_currentClientId) loadClient(_currentClientId); }
 
   // ── Render health profile ────────────────────────────────────────────────
+  // profile = health_profiles.payload (genethrive.intake.v1 schema)
   function renderProfile(p) {
     if (!p) { document.getElementById('profile-grid').innerHTML = '<div style="color:var(--ink-soft);font-size:13px">No profile found.</div>'; return; }
 
-    const flag = val => val === 'Yes';
+    function calcAge(dob) {
+      if (!dob) return null;
+      const d = new Date(dob), now = new Date();
+      let age = now.getFullYear() - d.getFullYear();
+      if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) age--;
+      return age;
+    }
+
+    const yesNo = val => (val === 'yes' || val === true) ? 'Yes' : 'No';
+    const flag  = val => val === 'yes' || val === true;
 
     const items = [
-      { label: 'Gender', value: p.gender || '—' },
-      { label: 'Age', value: p.age ? `${p.age} years` : '—' },
-      { label: 'Pregnant / breastfeeding', value: p.pregnant_breastfeeding || '—', flagIf: flag(p.pregnant_breastfeeding) },
-      { label: 'Haematological condition', value: p.conditions_haematological || '—', flagIf: flag(p.conditions_haematological) },
-      { label: 'Medical conditions', value: p.conditions === 'Yes' ? (p.conditions_detail || 'Yes — see detail') : 'None', flagIf: flag(p.conditions) },
-      { label: 'Medications', value: p.medications === 'Yes' ? (p.medications_detail || 'Yes — see detail') : 'None', flagIf: flag(p.medications) },
-      { label: 'Allergies', value: p.allergies === 'Yes' ? (p.allergies_detail || 'Yes — see detail') : 'None', flagIf: flag(p.allergies) },
-      { label: 'Fasting protocol', value: p.fasting === 'Yes' ? (p.fasting_detail || 'Yes — protocol not specified') : 'No' },
+      { label: 'Sex',                      value: p.sex || '—' },
+      { label: 'Age',                      value: p.dob ? `${calcAge(p.dob)} yrs (DOB ${p.dob})` : '—' },
+      { label: 'Pregnant / breastfeeding', value: yesNo(p.pregnancy?.answer), flagIf: flag(p.pregnancy?.answer) },
+      { label: 'Haematological condition', value: yesNo(p.blood?.answer),     flagIf: flag(p.blood?.answer) },
+      { label: 'Medical conditions',       value: p.cond?.answer === 'yes' ? (p.cond.items?.join(', ') || 'Yes — see detail') : 'None', flagIf: p.cond?.answer === 'yes' },
+      { label: 'Medications',              value: p.meds?.answer === 'yes' ? (p.meds.items?.join(', ') || 'Yes — see detail') : 'None', flagIf: p.meds?.answer === 'yes' },
+      { label: 'Shellfish allergy',        value: yesNo(p.shellfish?.answer), flagIf: flag(p.shellfish?.answer) },
+      { label: 'Diet',                     value: Array.isArray(p.diet) ? p.diet.join(', ') : (p.diet || '—') },
+      { label: 'Exercise',                 value: p.exercise_freq || p.additional?.lifestyle?.exerciseFreq || '—' },
+      { label: 'Alcohol / week',           value: p.alcohol_per_week || p.additional?.lifestyle?.alcoholPerWeek || '—' },
+      { label: 'Oily fish (serves/wk)',    value: p.oily_fish_freq || '—' },
+      { label: 'Smokes',                   value: p.smokes?.answer === 'yes' ? 'Yes' : 'No' },
+      { label: 'Urgent flags',             value: p.urgentFlags?.length ? p.urgentFlags.join(', ') : 'None', flagIf: p.urgentFlags?.length > 0 },
     ];
 
     document.getElementById('profile-grid').innerHTML = items.map(i => `
@@ -476,7 +492,7 @@
       { id: 'l1_fatigue',     label: 'Energy metabolism — CoQ10, ribose, B-vitamins indicated' },
       { id: 'l1_bone',        label: 'Bone density — Vitamin D3/K2, magnesium indicated' },
       { id: 'l1_gut',         label: 'Gut microbiome — probiotic strains, glutamine indicated' },
-      { id: 'l1_iron',        label: profile?.conditions_haematological === 'Yes' ? '⚠ Haematological condition — review iron supplementation carefully' : 'Iron status — standard inclusion', flagged: profile?.conditions_haematological === 'Yes' },
+      { id: 'l1_iron',        label: profile?.blood?.answer === 'yes' ? '⚠ Haematological condition — review iron supplementation carefully' : 'Iron status — standard inclusion', flagged: profile?.blood?.answer === 'yes' },
       { id: 'l1_omega',       label: 'Omega-3 fatty acid conversion — EPA/DHA support' },
       { id: 'l1_antioxidant', label: 'Oxidative stress — antioxidant complex indicated' },
     ];

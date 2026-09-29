@@ -153,13 +153,13 @@ exports.handler = async function (event) {
           return { clientId: row.order_ref, orderId: row.order_id, clientName: null, email: null, paidAt: row.paid_at };
         }
         const contactRes = await supabaseGet(
-          `/client_contacts?id=eq.${encodeURIComponent(row.client_contact_id)}&select=name,email&limit=1`
+          `/client_contacts?id=eq.${encodeURIComponent(row.client_contact_id)}&select=first_name,last_name,email&limit=1`
         );
         const contact = contactRes.data?.[0] || {};
         return {
           clientId:   row.order_ref,
           orderId:    row.order_id,
-          clientName: contact.name || null,
+          clientName: [contact.first_name, contact.last_name].filter(Boolean).join(' ') || null,
           email:      contact.email || null,
           paidAt:     row.paid_at,
         };
@@ -198,11 +198,11 @@ exports.handler = async function (event) {
           : Promise.resolve({ data: [] }),
       ]);
 
-      const profile = profileRes.data?.[0] || null;
-      const dna     = dnaRes.data?.[0]     || null;
-      const contact = contactRes.data?.[0]  || null;
+      const profileRow = profileRes.data?.[0] || null;
+      const dna        = dnaRes.data?.[0]     || null;
+      const contact    = contactRes.data?.[0]  || null;
 
-      if (!profile) {
+      if (!profileRow) {
         return {
           statusCode: 404,
           headers: corsHeaders,
@@ -218,7 +218,7 @@ exports.handler = async function (event) {
         body: JSON.stringify({
           clientId,
           orderId: order.id,
-          profile,   // payload (Engine JSON) + raw_wizard_record
+          profile: profileRow.payload || null,   // unwrap jsonb payload — portal renderProfile() reads flat keys
           dna,
           contact,   // name/email/address — safe for Barbara to see
         }),
