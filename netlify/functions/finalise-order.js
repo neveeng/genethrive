@@ -7,19 +7,22 @@
  *
  * WHAT IT DOES:
  *   1. Validates env vars and verifies PaymentIntent is paid
- *   2. Generates Client ID: GT-{random}-{hash}
+ *   2. Generates order_ref (GT-2026-XXXX) and a random intake_token (UUID)
  *   3. Transfers $137.50 to NutriPath via Stripe Connect (1st half — kit dispatch)
  *   4. Creates $200/month Stripe Subscription on the saved card
  *   5. Creates a Shopify order + customer record
- *   6. Creates order_sla row in Supabase
- *   7. Emails client (confirmation + health profile link) + ops (status only)
- *   8. SMS client with health profile link
- *   9. Returns clientId to the browser
+ *   6. Inserts client_contacts row in Supabase
+ *   7. Inserts orders row in Supabase (with intake_token)
+ *   8. Emails client (confirmation + personal health profile link) + ops (status only)
+ *   9. SMS client with personal health profile link
+ *  10. Returns orderRef (= clientId) to the browser
  *
  * PRIVACY:
  *   - Health data is NOT collected here — it comes later via submit-health-profile.js
+ *   - The intake_token is a random UUID — safe to put in a URL, unlike order_ref
  *   - No health content is sent to Shopify, ops email, or anywhere except Supabase
- *   - Ops email is status-only (client ID, order number, payment status)
+ *   - Ops email is status-only (order_ref, Shopify order number, payment status)
+ *   - intake_token is NOT included in the ops email — it's client-only
  *
  * ENVIRONMENT VARIABLES REQUIRED:
  *   STRIPE_SECRET_KEY            sk_live_... (or sk_test_... in test mode)
@@ -43,24 +46,9 @@
 const Stripe     = require('stripe');
 const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
-const { shopifyFetch } = require('./shopify-token');
-const { sendSmsSafe, formatAustralianPhone } = require('./sinch-sms');
-
-// ── Supabase REST helper ──────────────────────────────────────────────────────
-
-async function supabaseRequest(path, method = 'GET', body = null) {
-  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
-    method,
-    headers: {
-      'Content-Type':  'application/json',
-      'apikey':        process.env.SUPABASE_SERVICE_KEY,
-      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-      'Prefer':        method === 'POST' ? 'return=minimal' : '',
-    },
-    body: body ? JSON.stringify(body) : null,
-  });
-  return { ok: res.ok, status: res.status };
-}
+const { shopifyFetch }               = require('./_lib/shopify-token');
+const { sendSmsSafe, formatAustralianPhone } = require('./_lib/sinch-sms');
+const { insertRow }                  = require('./_lib/supabase-rest');
 
 // ── Env var validation ────────────────────────────────────────────────────────
 
@@ -82,16 +70,15 @@ function validateEnv() {
   return true;
 }
 
-// ── Client ID ────────────────────────────────────────────────────────────────
+// ── Order ref: GT-2026-XXXXXX style ──────────────────────────────────────────
+// 4-digit random + 2 hex chars = effectively unique for typical volumes.
+// For production at scale you'd use a Supabase sequence instead.
 
-function generateClientId(paymentIntentId) {
-  const hash = crypto
-    .createHash('sha256')
-    .update(paymentIntentId)
-    .digest('hex')
-    .slice(0, 6);
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `GT-${rand}-${hash}`;
+function generateOrderRef() {
+  const year   = new Date().getFullYear();
+  const seq    = Math.floor(1000 + Math.random() * 9000);   // 1000–9999
+  const suffix = crypto.randomBytes(1).toString('hex');     // e.g. "a3"
+  return `GT-${year}-${seq}${suffix}`;
 }
 
 // ── Email transporter ─────────────────────────────────────────────────────────
@@ -133,7 +120,8 @@ exports.handler = async function (event) {
   try {
     const body      = JSON.parse(event.body);
     paymentIntentId = body.paymentIntentId;
-    clientDetails   = body.clientDetails;   // { name, email, phone, address, suburb, state, postcode }
+    clientDetails   = body.clientDetails;   // { firstName, lastName, email, phone, address, suburb, state, postcode }
+                                            // OR { name, email, phone, ... } for backward compat
   } catch {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
@@ -141,6 +129,10 @@ exports.handler = async function (event) {
   if (!paymentIntentId || !clientDetails?.email) {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing paymentIntentId or clientDetails' }) };
   }
+
+  // Normalise name fields — support both { firstName, lastName } and legacy { name }
+  const firstName = clientDetails.firstName || (clientDetails.name || '').split(' ')[0] || '';
+  const lastName  = clientDetails.lastName  || (clientDetails.name || '').split(' ').slice(1).join(' ') || '';
 
   // ── 1. Verify payment succeeded ─────────────────────────────────────────────
   let paymentIntent;
@@ -160,12 +152,13 @@ exports.handler = async function (event) {
   }
 
   const stripeCustomerId = paymentIntent.customer;
-  const clientId         = generateClientId(paymentIntentId);
-  const orderDate        = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
+  const orderRef         = generateOrderRef();    // e.g. GT-2026-4821a3  (human-readable)
+  const intakeToken      = crypto.randomUUID();   // e.g. 550e8400-e29b-41d4-a716-446655440000
+  const now              = new Date().toISOString();
 
-  console.log(`GeneThrive: Finalising order — Client ID ${clientId}`);
+  console.log(`GeneThrive: Finalising order — ${orderRef}`);
 
-  // ── 2. Transfer $137.50 to NutriPath (1st half — for kit dispatch) ───────────
+  // ── 2. Transfer $137.50 to NutriPath (1st half — for kit dispatch) ────────────
   // 2nd half ($137.50) released by nutripath-submit.js when DNA results are uploaded.
   if (process.env.STRIPE_ACCOUNT_NUTRIPATH) {
     try {
@@ -173,8 +166,8 @@ exports.handler = async function (event) {
         amount:      parseInt(process.env.PRICE_NUTRIPATH_1_CENTS || '13750'),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_NUTRIPATH,
-        description: `GeneThrive ${clientId} — DNA lab payment (1st half — kit dispatch)`,
-        metadata:    { clientId, stage: 'kit-dispatch' },
+        description: `GeneThrive ${orderRef} — DNA lab payment (1st half — kit dispatch)`,
+        metadata:    { orderRef, stage: 'kit-dispatch' },
       });
       console.log(`GeneThrive: $137.50 transferred to NutriPath — ${t.id}`);
     } catch (err) {
@@ -196,14 +189,14 @@ exports.handler = async function (event) {
 
       await stripe.customers.update(stripeCustomerId, {
         invoice_settings: { default_payment_method: paymentMethod },
-        metadata: { clientId },
+        metadata: { orderRef },
       });
 
       const subscription = await stripe.subscriptions.create({
         customer:          stripeCustomerId,
         items:             [{ price: process.env.STRIPE_PRICE_MONTHLY }],
         trial_period_days: 30,
-        metadata:          { clientId, product: 'GeneThrive Monthly Vitamins' },
+        metadata:          { orderRef, product: 'GeneThrive Monthly Vitamins' },
       });
 
       subscriptionId = subscription.id;
@@ -218,10 +211,6 @@ exports.handler = async function (event) {
   let shopifyOrderNumber = null;
   let shopifyOrderId     = null;
   try {
-    const nameParts = clientDetails.name.split(' ');
-    const firstName = nameParts[0];
-    const lastName  = nameParts.slice(1).join(' ') || '.';
-
     const shopifyRes = await shopifyFetch('/admin/api/2024-01/orders.json', {
       method: 'POST',
       body: JSON.stringify({
@@ -231,7 +220,7 @@ exports.handler = async function (event) {
           fulfillment_status:       null,
           send_receipt:             false,
           send_fulfillment_receipt: false,
-          tags:                     `stripe-managed,client-id:${clientId},awaiting-health-profile`,
+          tags:                     `stripe-managed,order-ref:${orderRef},awaiting-health-profile`,
           note:                     `Stripe PI: ${paymentIntentId} | Sub: ${subscriptionId || 'pending'}`,
           line_items: [{
             title:             'GeneThrive DNA + First Month Vitamins',
@@ -241,7 +230,7 @@ exports.handler = async function (event) {
           }],
           billing_address: {
             first_name: firstName,
-            last_name:  lastName,
+            last_name:  lastName || '.',
             address1:   clientDetails.address,
             city:       clientDetails.suburb,
             province:   clientDetails.state,
@@ -251,7 +240,7 @@ exports.handler = async function (event) {
           },
           shipping_address: {
             first_name: firstName,
-            last_name:  lastName,
+            last_name:  lastName || '.',
             address1:   clientDetails.address,
             city:       clientDetails.suburb,
             province:   clientDetails.state,
@@ -273,7 +262,7 @@ exports.handler = async function (event) {
     } else {
       shopifyOrderNumber = shopifyData.order?.order_number;
       shopifyOrderId     = shopifyData.order?.id;
-      console.log(`GeneThrive: Shopify order #${shopifyOrderNumber} created for ${clientId}`);
+      console.log(`GeneThrive: Shopify order #${shopifyOrderNumber} created for ${orderRef}`);
     }
   } catch (err) {
     console.error('GeneThrive: Shopify order creation failed —', err.message);
@@ -281,22 +270,18 @@ exports.handler = async function (event) {
 
   // ── 4b. Create / update Shopify customer ─────────────────────────────────────
   try {
-    const nameParts = clientDetails.name.split(' ');
-    const firstName = nameParts[0];
-    const lastName  = nameParts.slice(1).join(' ') || '.';
-
-    const accountRes  = await shopifyFetch('/admin/api/2024-01/customers.json', {
+    const accountRes = await shopifyFetch('/admin/api/2024-01/customers.json', {
       method: 'POST',
       body: JSON.stringify({
         customer: {
           first_name:         firstName,
-          last_name:          lastName,
+          last_name:          lastName || '.',
           email:              clientDetails.email,
           phone:              clientDetails.phone,
           send_email_invite:  false,
           send_email_welcome: false,
-          tags:               `client-id:${clientId},genethrive-member`,
-          note:               `Client ID: ${clientId} | Stripe PI: ${paymentIntentId}`,
+          tags:               `order-ref:${orderRef},genethrive-member`,
+          note:               `Order Ref: ${orderRef} | Stripe PI: ${paymentIntentId}`,
           addresses: [{
             address1:   clientDetails.address,
             city:       clientDetails.suburb,
@@ -305,7 +290,7 @@ exports.handler = async function (event) {
             country:    'AU',
             phone:      clientDetails.phone,
             first_name: firstName,
-            last_name:  lastName,
+            last_name:  lastName || '.',
             default:    true,
           }],
         },
@@ -315,7 +300,7 @@ exports.handler = async function (event) {
     const accountData = await accountRes.json();
 
     if (!accountRes.ok && accountData.errors?.email) {
-      // Email already exists — just add the client ID tag
+      // Email already exists — just add the order-ref tag
       const existingRes  = await shopifyFetch(
         `/admin/api/2024-01/customers/search.json?query=email:${encodeURIComponent(clientDetails.email)}&limit=1`
       );
@@ -323,61 +308,89 @@ exports.handler = async function (event) {
       const existing     = existingData.customers?.[0];
       if (existing) {
         const tags = existing.tags ? existing.tags.split(', ') : [];
-        if (!tags.includes(`client-id:${clientId}`)) {
-          tags.push(`client-id:${clientId}`);
+        if (!tags.includes(`order-ref:${orderRef}`)) {
+          tags.push(`order-ref:${orderRef}`);
           await shopifyFetch(`/admin/api/2024-01/customers/${existing.id}.json`, {
             method: 'PUT',
             body:   JSON.stringify({ customer: { id: existing.id, tags: tags.join(', ') } }),
           });
         }
-        console.log(`GeneThrive: Existing Shopify customer updated — ${clientId}`);
+        console.log(`GeneThrive: Existing Shopify customer updated — ${orderRef}`);
       }
     } else {
-      console.log(`GeneThrive: Shopify customer created — ${clientId}`);
+      console.log(`GeneThrive: Shopify customer created — ${orderRef}`);
     }
   } catch (err) {
     console.error('GeneThrive: Customer creation error (non-fatal) —', err.message);
   }
 
-  // ── 5. Create Supabase order_sla record ──────────────────────────────────────
+  // ── 5. Insert client_contacts row in Supabase ─────────────────────────────────
+  let clientContactId = null;
   try {
-    const result = await supabaseRequest('/order_sla', 'POST', {
-      client_id:            clientId,
-      shopify_order_number: shopifyOrderNumber ? String(shopifyOrderNumber) : null,
-      client_email:         clientDetails.email,
-      client_phone:         clientDetails.phone,
-      payment_received_at:  new Date().toISOString(),
-      current_stage:        'health_profile',
-      stage_entered_at:     new Date().toISOString(),
+    const contact = await insertRow('client_contacts', {
+      first_name:    firstName,
+      last_name:     lastName,
+      email:         clientDetails.email,
+      mobile:        clientDetails.phone,
+      addr_street:   clientDetails.address,
+      addr_suburb:   clientDetails.suburb,
+      addr_state:    clientDetails.state,
+      addr_postcode: clientDetails.postcode,
     });
-    if (!result.ok) console.error('GeneThrive: Supabase order_sla insert failed — status', result.status);
-    else console.log(`GeneThrive: Supabase order_sla created — ${clientId}`);
+    clientContactId = contact?.id || null;
+    console.log(`GeneThrive: client_contacts row created — id ${clientContactId}`);
   } catch (err) {
-    console.error('GeneThrive: Supabase order_sla insert failed —', err.message);
+    // Non-fatal: log and continue. Orders row will have null client_contact_id.
+    console.error('GeneThrive: client_contacts insert failed —', err.message);
   }
 
-  // ── 6. Build URLs ─────────────────────────────────────────────────────────────
-  const storeUrl  = `https://${process.env.SHOPIFY_STORE_DOMAIN}`;
-  const healthUrl = `${storeUrl}/pages/health-profile?id=${encodeURIComponent(clientId)}`;
+  // ── 6. Insert orders row in Supabase (with intake_token) ──────────────────────
+  // PRIVACY: intake_token is a random UUID — safe to put in a URL, unlike order_ref.
+  // The health profile wizard exchanges this token for client details to pre-fill the
+  // form. Clinical answers are stored in health_profiles (Barbara-only RLS) — never here.
+  let supabaseOrderId = null;
+  try {
+    const order = await insertRow('orders', {
+      order_ref:               orderRef,
+      client_contact_id:       clientContactId,
+      status:                  'paid',
+      paid_at:                 now,
+      subscription_sku:        'GENETHRIVE-MONTHLY-200',
+      intake_token:            intakeToken,
+      intake_token_created_at: now,
+      // assigned_practitioner_id left null — set later by Barbara
+    });
+    supabaseOrderId = order?.id || null;
+    console.log(`GeneThrive: orders row created — id ${supabaseOrderId}, ref ${orderRef}`);
+  } catch (err) {
+    // Payment has already succeeded so we still return 200. Paul will see the Shopify
+    // order; Barbara will need to manually create the Supabase record if this fails.
+    console.error('GeneThrive: CRITICAL — orders insert failed —', err.message);
+  }
 
-  // ── 7. Send emails ────────────────────────────────────────────────────────────
+  // ── 7. Build URLs ──────────────────────────────────────────────────────────────
+  // Health profile URL uses the intake_token — NOT the order_ref or any DB id.
+  // The token is a random UUID so it's safe to send in a text message or email.
+  const healthUrl = `https://genethrive.netlify.app/health-profile?token=${intakeToken}`;
+  const storeUrl  = `https://${process.env.SHOPIFY_STORE_DOMAIN}`;
+
+  // ── 8. Send emails ────────────────────────────────────────────────────────────
   // PRIVACY RULE:
-  //   - Client email: confirmation + health profile link
-  //   - Ops email: status only — NO health content, NO clinical data
+  //   - Client email: confirmation + personal health profile link (token-based)
+  //   - Ops email: status only — NO health content, NO clinical data, NO intake_token
   //   - NutriPath notified later by submit-health-profile.js (after profile is submitted)
   try {
     const transporter = createTransporter();
-    const firstName   = clientDetails.name.split(' ')[0];
     const initialAmt  = ((parseInt(process.env.PRICE_INITIAL_CENTS || '54900')) / 100).toFixed(2);
 
     await Promise.all([
 
-      // Client — payment confirmed + health profile link
+      // Client — payment confirmed + personal health profile link (token in URL)
       transporter.sendMail({
         from:    process.env.EMAIL_FROM,
         to:      clientDetails.email,
         replyTo: process.env.EMAIL_REPLY_TO,
-        subject: `Your GeneThrive order is confirmed — next step inside — ${clientId}`,
+        subject: `Your GeneThrive order is confirmed — next step inside — ${orderRef}`,
         html: `
           <div style="font-family:sans-serif;color:#1c1c1a;max-width:520px">
             <div style="background:#4a6741;padding:20px 24px;border-radius:8px 8px 0 0">
@@ -390,7 +403,7 @@ exports.handler = async function (event) {
               </p>
               <div style="background:#e8eee7;border-radius:8px;padding:16px;margin-bottom:20px">
                 <div style="font-size:10px;color:#4a6741;font-weight:600;letter-spacing:1px;margin-bottom:4px">YOUR REFERENCE</div>
-                <div style="font-size:18px;font-weight:700">${clientId}</div>
+                <div style="font-size:18px;font-weight:700">${orderRef}</div>
                 <div style="font-size:12px;color:#7a7a74;margin-top:4px">Keep this for any enquiries</div>
               </div>
               <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin-bottom:20px">
@@ -409,7 +422,7 @@ exports.handler = async function (event) {
               </div>
               <p style="font-size:13px;font-weight:600;margin:0 0 10px">What happens next:</p>
               <ol style="font-size:13px;color:#4a4a46;line-height:1.8;margin:0 0 20px;padding-left:18px">
-                <li><strong>Complete your health profile</strong> — link above</li>
+                <li><strong>Complete your health profile</strong> — link above (personal to you)</li>
                 <li>DNA swab kit dispatched to your address (3–5 business days)</li>
                 <li>Return the swab using the prepaid envelope</li>
                 <li>Our naturopath reviews your DNA results</li>
@@ -428,12 +441,12 @@ exports.handler = async function (event) {
         `,
       }),
 
-      // Ops — status only, NO health content
+      // Ops — status only, NO health content, NO intake_token
       transporter.sendMail({
         from:    process.env.EMAIL_FROM,
         to:      process.env.EMAIL_OPS,
         replyTo: process.env.EMAIL_REPLY_TO,
-        subject: `New order — ${clientId} — awaiting health profile`,
+        subject: `New order — ${orderRef} — awaiting health profile`,
         html: `
           <div style="font-family:sans-serif;max-width:480px;color:#1c1c1a">
             <div style="background:#1c1c1a;padding:16px 24px;border-radius:8px 8px 0 0">
@@ -442,13 +455,13 @@ exports.handler = async function (event) {
             </div>
             <div style="border:1px solid #d6cfc3;border-top:none;padding:24px;border-radius:0 0 8px 8px">
               <p style="font-size:14px;margin:0 0 16px;color:#4a4a46">
-                New order paid. Client sent health profile link.
+                New order paid. Client sent personal health profile link.
                 NutriPath notified after profile is submitted.
               </p>
               <table style="width:100%;font-size:13px;border-collapse:collapse">
                 <tr style="border-bottom:1px solid #ede8df">
-                  <td style="padding:8px 0;color:#7a7a74;width:160px">Client ID</td>
-                  <td style="padding:8px 0;font-weight:600">${clientId}</td>
+                  <td style="padding:8px 0;color:#7a7a74;width:160px">Order Ref</td>
+                  <td style="padding:8px 0;font-weight:600">${orderRef}</td>
                 </tr>
                 <tr style="border-bottom:1px solid #ede8df">
                   <td style="padding:8px 0;color:#7a7a74">Shopify order</td>
@@ -477,30 +490,32 @@ exports.handler = async function (event) {
 
     ]);
 
-    console.log(`GeneThrive: Emails sent — ${clientId}`);
+    console.log(`GeneThrive: Emails sent — ${orderRef}`);
   } catch (err) {
     console.error('GeneThrive: Email sending failed —', err.message);
   }
 
-  // ── 8. SMS client with health profile link (non-fatal) ───────────────────────
+  // ── 9. SMS client with personal health profile link (non-fatal) ───────────────
+  // Uses intake_token URL — the token is opaque so there's no risk exposing it in SMS.
   if (clientDetails.phone) {
     const e164 = formatAustralianPhone(clientDetails.phone);
     await sendSmsSafe(
       e164,
-      `GeneThrive: Payment confirmed! Your reference: ${clientId}. ` +
-      `Complete your health profile to get started: ${healthUrl}`,
-      `order ${clientId}`
+      `GeneThrive: Payment confirmed! Reference: ${orderRef}. ` +
+      `Complete your health profile: ${healthUrl}`,
+      `order ${orderRef}`
     );
-    console.log(`GeneThrive: SMS sent to client — ${clientId}`);
+    console.log(`GeneThrive: SMS sent to client — ${orderRef}`);
   }
 
-  // ── 9. Return to browser ──────────────────────────────────────────────────────
+  // ── 10. Return to browser ─────────────────────────────────────────────────────
   return {
     statusCode: 200,
     headers: corsHeaders,
     body: JSON.stringify({
       success:      true,
-      clientId,
+      clientId:     orderRef,    // kept as 'clientId' key for backward-compat with payment page JS
+      orderRef,
       shopifyOrder: shopifyOrderNumber,
       subscription: subscriptionId,
     }),
