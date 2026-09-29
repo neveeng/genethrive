@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Health Profile — GeneThrive</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f7f9f7;color:#1a1a1a;min-height:100vh;padding:0 0 3rem;}
+.w{max-width:480px;margin:0 auto;padding:0 1rem;}
+.progress-wrap{position:sticky;top:0;background:#f7f9f7;padding:14px 1rem 10px;z-index:50;border-bottom:1px solid #e5e5e5;}
+.progress-track{height:8px;background:#e5e5e5;border-radius:8px;overflow:hidden;max-width:480px;margin:0 auto 8px;}
+.progress-fill{height:100%;background:#1D9E75;border-radius:8px;transition:width 0.3s ease;width:11%;}
+.progress-label{max-width:480px;margin:0 auto;font-size:13px;font-weight:600;color:#0F6E56;text-align:center;}
+.hero{margin:1.2rem 0 1rem;padding-bottom:1rem;border-bottom:1px solid #e0e0e0;}
+.hero-title{font-size:22px;font-weight:700;color:#111;margin-bottom:6px;}
+.hero-row{display:flex;gap:14px;flex-wrap:wrap;}
+.hero-badge{font-size:14px;color:#444;display:flex;align-items:center;gap:5px;}
+.email-notice{background:#f0faf5;border:1.5px solid #a8ddc5;border-radius:12px;padding:13px 15px;font-size:14px;color:#0a5c3a;line-height:1.55;margin-bottom:1.2rem;}
+.divider{height:1px;background:#e5e5e5;margin:1.5rem 0;}
+.sec{font-size:11px;font-weight:700;color:#0F6E56;text-transform:uppercase;letter-spacing:0.09em;margin-bottom:14px;}
+.sec-note{font-size:13px;color:#1a4a7a;background:#EEF6FF;border:1.5px solid #B3D4F5;border-radius:12px;padding:12px 14px;line-height:1.6;margin-bottom:14px;}
+.step-title{font-size:20px;font-weight:700;color:#111;margin-bottom:4px;}
+.step-sub{font-size:14px;color:#666;margin-bottom:1.2rem;line-height:1.5;}
+.q-block{margin-bottom:1.5rem;}
+.q-block.safety-critical{background:#fff7ec;border:2px solid #f0b23a;border-radius:16px;padding:16px;margin-bottom:16px;}
+.safety-critical .q-label{color:#7a4a00;}
+.safety-critical-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#c97f0e;border-radius:10px;padding:2px 9px;margin-bottom:8px;letter-spacing:.03em;}
+.q-label{font-size:18px;font-weight:600;color:#111;margin-bottom:8px;line-height:1.4;}
+.q-sub{font-size:14px;color:#555;margin-bottom:12px;line-height:1.5;}
+.req-badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#1D9E75;border-radius:10px;padding:1px 9px;margin-left:8px;vertical-align:middle;letter-spacing:.02em;}
+.btn-row{display:flex;gap:12px;}
+.big-btn{flex:1;padding:20px 10px;font-size:18px;font-weight:700;border:2.5px solid #ddd;border-radius:14px;background:#fff;color:#333;cursor:pointer;text-align:center;transition:all 0.15s;font-family:inherit;min-height:60px;}
+.big-btn:active{transform:scale(0.97);}
+.big-btn.yes{border-color:#1D9E75;background:#1D9E75;color:#fff;}
+.big-btn.no{border-color:#e0e0e0;background:#f0f0f0;color:#555;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid-btn{padding:20px 8px;font-size:16px;font-weight:600;border:2.5px solid #ddd;border-radius:14px;background:#fff;color:#333;cursor:pointer;text-align:center;transition:all 0.15s;font-family:inherit;min-height:60px;line-height:1.3;}
+.grid-btn:active{transform:scale(0.97);}
+.grid-btn.sel{border-color:#1D9E75;background:#1D9E75;color:#fff;}
+.expand{max-height:0;overflow:hidden;transition:max-height 0.4s ease;}
+.expand.open{max-height:1600px;}
+.sub-opts{padding:12px 0 6px;}
+.sub-hint{font-size:13px;color:#777;margin-bottom:10px;line-height:1.45;}
+.sub-opt{display:flex;align-items:center;gap:14px;padding:16px 16px;border:2px solid #e5e5e5;border-radius:12px;cursor:pointer;font-size:16px;color:#111;font-weight:500;transition:all 0.15s;background:#fff;width:100%;text-align:left;font-family:inherit;min-height:56px;margin-bottom:8px;}
+.sub-opt:active{transform:scale(0.98);}
+.sub-opt.sel{border-color:#1D9E75;background:#f0faf5;}
+.tick{width:28px;height:28px;border-radius:8px;border:2.5px solid #ccc;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;transition:all 0.15s;background:#fff;}
+.sub-opt.sel .tick{background:#1D9E75;border-color:#1D9E75;color:#fff;}
+.freq-row{display:flex;gap:10px;flex-direction:column;}
+.freq-btn{padding:18px 14px;font-size:15px;font-weight:600;border:2.5px solid #ddd;border-radius:14px;background:#fff;color:#333;cursor:pointer;text-align:left;transition:all 0.15s;font-family:inherit;min-height:56px;width:100%;}
+.freq-btn:active{transform:scale(0.98);}
+.freq-btn.sel{border-color:#1D9E75;background:#1D9E75;color:#fff;}
+textarea{width:100%;padding:14px;border:2px solid #ddd;border-radius:12px;font-size:16px;color:#111;background:#fff;line-height:1.6;resize:vertical;font-family:inherit;min-height:80px;margin-top:6px;}
+textarea:focus{outline:none;border-color:#1D9E75;}
+.safety{background:#fffbf0;border:1.5px solid #ffe9a0;border-radius:12px;padding:12px 14px;font-size:14px;color:#7a5c00;line-height:1.6;margin-top:12px;display:flex;gap:10px;align-items:flex-start;}
+.sleep-duration{display:none;}
+.sleep-duration.show{display:block;}
+.nav-row{display:flex;gap:12px;margin-top:1.5rem;}
+.btn-primary{flex:1;padding:20px;background:#1D9E75;color:#fff;border:none;border-radius:16px;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit;transition:background 0.15s;min-height:64px;}
+.btn-primary:hover{background:#0F6E56;}
+.btn-primary:active{transform:scale(0.98);}
+.btn-primary:disabled{background:#9db8ae;cursor:not-allowed;}
+.btn-secondary{flex:0 0 96px;padding:20px 10px;background:#fff;color:#333;border:2.5px solid #ddd;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;min-height:64px;}
+.btn-secondary:active{transform:scale(0.98);}
+.done{text-align:center;padding:4rem 0;display:none;}
+.done-circle{width:80px;height:80px;border-radius:50%;background:#f0faf5;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:40px;}
+.done-title{font-size:24px;font-weight:700;color:#111;margin-bottom:10px;}
+.done-sub{font-size:16px;color:#555;line-height:1.7;max-width:340px;margin:0 auto;}
+.dob-row{display:flex;flex-direction:column;gap:10px;}
+.dob-select{width:100%;min-height:62px;padding:14px 8px;font-size:18px;font-weight:600;border:2.5px solid #ddd;border-radius:14px;background:#fff;color:#333;font-family:inherit;}
+.dob-select:focus{outline:none;border-color:#1D9E75;}
+.text-input{width:100%;min-height:60px;padding:14px;border:2.5px solid #ddd;border-radius:14px;font-size:18px;font-weight:600;color:#111;background:#fff;font-family:inherit;}
+.text-input:focus{outline:none;border-color:#1D9E75;}
+.err-msg{display:none;color:#c0392b;font-size:13px;margin-top:6px;font-weight:600;}
+.q-block.missing .err-msg{display:block;}
+.q-block.missing .text-input,.q-block.missing .dob-select{border-color:#c0392b;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.locked-field{background:#f1f3f2!important;color:#5b6b7d!important;border-color:#e1e5e3!important;cursor:not-allowed;}
+.prefill-note{font-size:12px;color:#5b6b7d;margin-top:5px;}
+.prefill-note a{color:#1D9E75;font-weight:700;text-decoration:none;}
+.prefill-banner{background:#eaf7f1;border:1px solid #bfe6d6;color:#1a6b4f;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.4;margin:0 0 16px;font-weight:600;}
+.prefill-banner.warn{background:#fff7ec;border-color:#f0d9a0;color:#7a5c00;}
+#reqMsg{display:none;background:#fdecea;color:#a3352b;border:1px solid #f0b3ac;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.4;margin:0 0 14px;}
+.step{display:none;}
+.step.active{display:block;}
+.summary-row{padding:10px 0;border-bottom:1px solid #eee;font-size:14px;line-height:1.5;}
+.summary-row .sq{color:#666;}
+.summary-row .sa{font-weight:700;color:#111;}
+.summary-row.flag{background:#fff7ec;border:1.5px solid #f0b23a;border-radius:10px;padding:10px 12px;margin-bottom:8px;border-bottom:1.5px solid #f0b23a;}
+.summary-row.flag .sa{color:#7a4a00;}
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">Step 1 of 9 — About you</div>
+</div>
+
+<div class="w">
+<div id="mainForm">
+
+<div class="hero" id="heroBlock">
+  <div class="hero-title">Your Health Profile</div>
+  <div class="hero-row">
+    <div class="hero-badge">⏱ 6–8 minutes</div>
+    <div class="hero-badge">🔒 Shared only with your naturopath</div>
+  </div>
+</div>
+
+<div class="email-notice" id="introNotice">
+  This helps our naturopath build your personalised formula safely. Answer one screen at a time — you can always go back. If you're unsure about anything, answer as best you can; our naturopath will follow up.<br><br>Reference: <strong id="clientRefDisplay">—</strong>
+</div>
+
+<div id="reqMsg">Please complete the highlighted question(s) — they matter for your safety.</div>
+
+<!-- ============ STEP 1 — ABOUT YOU ============ -->
+<div class="step active" data-step="1">
+  <div class="step-title">About you</div>
+  <div class="step-sub">Your details, and where to send your DNA kit and monthly supply.</div>
+  <div class="prefill-banner" id="prefillBanner" style="display:none;">We've already got some of these details from your subscription — just check them and tap "Edit" on anything that needs changing.</div>
+  <div class="prefill-banner" id="prefillLoadingBanner" style="display:none;">Loading your details…</div>
+  <div class="prefill-banner warn" id="prefillFailBanner" style="display:none;">We couldn't load your saved details automatically — please fill them in below.</div>
+
+  <div id="step1Fields">
+  <div class="q-block" id="qb-firstName">
+    <div class="q-label">Your first name <span class="req-badge">Required</span></div>
+    <input type="text" id="firstName" class="text-input" autocomplete="given-name" />
+    <div class="err-msg">Please enter your first name.</div>
+  </div>
+  <div class="q-block" id="qb-lastName">
+    <div class="q-label">Your last name <span class="req-badge">Required</span></div>
+    <input type="text" id="lastName" class="text-input" autocomplete="family-name" />
+    <div class="err-msg">Please enter your last name.</div>
+  </div>
+  <div class="q-block" id="qb-email">
+    <div class="q-label">Your email address <span class="req-badge">Required</span></div>
+    <input type="email" id="email" class="text-input" autocomplete="email" />
+    <div class="err-msg">Please enter a valid email address.</div>
+  </div>
+  <div class="q-block" id="qb-mobile">
+    <div class="q-label">Your mobile number <span class="req-badge">Required</span></div>
+    <input type="tel" id="mobile" class="text-input" placeholder="04xx xxx xxx" autocomplete="tel" />
+    <div class="err-msg">Please enter your mobile number.</div>
+  </div>
+  <div class="q-block" id="qb-dob">
+    <div class="q-label">Date of birth <span class="req-badge">Required</span></div>
+    <div class="q-sub">Tap each box — no typing needed</div>
+    <div class="dob-row">
+      <select class="dob-select" id="dob-day"><option value="" selected disabled>Day</option></select>
+      <select class="dob-select" id="dob-month">
+        <option value="" selected disabled>Month</option>
+        <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+        <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+        <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+        <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+      </select>
+      <select class="dob-select" id="dob-year"><option value="" selected disabled>Year</option></select>
+    </div>
+    <div class="err-msg">Please enter your date of birth.</div>
+  </div>
+  <div class="q-block" id="qb-sex">
+    <div class="q-label">Are you male or female? <span class="req-badge">Required</span></div>
+    <div class="btn-row" id="sex-grid">
+      <button type="button" class="big-btn" onclick="selectGrid('sex-grid',this,'male')">Male</button>
+      <button type="button" class="big-btn" onclick="selectGrid('sex-grid',this,'female')">Female</button>
+    </div>
+    <div class="err-msg">Please make a selection.</div>
+  </div>
+  <div class="q-block">
+    <div class="q-label">Your weight (optional)</div>
+    <div class="q-sub">In kilograms — leave blank if you'd rather not say</div>
+    <input type="number" id="weightKg" class="text-input" inputmode="numeric" placeholder="e.g. 72" min="20" max="300" />
+  </div>
+
+  <div class="divider"></div>
+  <div class="sec">Delivery address</div>
+  <div class="q-block" id="qb-addrStreet">
+    <div class="q-label">Street address <span class="req-badge">Required</span></div>
+    <input type="text" id="addrStreet" class="text-input" autocomplete="street-address" />
+    <div class="err-msg">Please enter your street address.</div>
+  </div>
+  <div class="row2">
+    <div class="q-block" id="qb-addrSuburb">
+      <div class="q-label">Suburb <span class="req-badge">Required</span></div>
+      <input type="text" id="addrSuburb" class="text-input" />
+      <div class="err-msg">Required.</div>
+    </div>
+    <div class="q-block" id="qb-addrPostcode">
+      <div class="q-label">Postcode <span class="req-badge">Required</span></div>
+      <input type="text" id="addrPostcode" class="text-input" inputmode="numeric" maxlength="4" />
+      <div class="err-msg">Required.</div>
+    </div>
+  </div>
+  <div class="q-block" id="qb-addrState">
+    <div class="q-label">State <span class="req-badge">Required</span></div>
+    <select id="addrState" class="dob-select">
+      <option value="" selected disabled>— Select —</option>
+      <option>NSW</option><option>VIC</option><option>QLD</option><option>WA</option>
+      <option>SA</option><option>TAS</option><option>ACT</option><option>NT</option>
+    </select>
+    <div class="err-msg">Required.</div>
+  </div>
+  </div>
+</div>
+
+<!-- ============ STEP 2 — SAFETY CHECK ============ -->
+<div class="step" data-step="2">
+  <div class="step-title">A few important safety questions</div>
+  <div class="step-sub">These change what's safe to put in your formula, so we ask them clearly and up front.</div>
+
+  <div class="q-block safety-critical">
+    <div class="safety-critical-badge">SAFETY</div>
+    <div class="q-label">Are you pregnant, breastfeeding, or planning pregnancy in the next 12 months? <span class="req-badge">Required</span></div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="preg-yes" onclick="yn('preg','yes')">Yes</button>
+      <button type="button" class="big-btn" id="preg-no" onclick="yn('preg','no')">No</button>
+    </div>
+    <div class="err-msg">Please answer this question.</div>
+    <div class="expand" id="exp-preg">
+      <div class="sub-opts">
+        <div class="sub-hint">Tap all that apply</div>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Pregnant now</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Breastfeeding</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Planning pregnancy in the next 12 months</button>
+      </div>
+    </div>
+    <div class="safety">⚠️ Some supplements (such as high-dose vitamin A) aren't safe in pregnancy. Barbara reviews this personally before your formula is issued.</div>
+  </div>
+
+  <div class="q-block safety-critical">
+    <div class="safety-critical-badge">SAFETY</div>
+    <div class="q-label">Are you currently using any hormone treatment? <span class="req-badge">Required</span></div>
+    <div class="q-sub">The pill, an IUD or implant with hormones, HRT/menopause hormones, testosterone therapy, or hormone therapy for transition</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="hormone-yes" onclick="yn('hormone','yes')">Yes</button>
+      <button type="button" class="big-btn" id="hormone-no" onclick="yn('hormone','no')">No</button>
+    </div>
+    <div class="err-msg">Please answer this question.</div>
+    <div class="expand" id="exp-hormone">
+      <div class="sub-opts">
+        <div class="sub-hint">Tap all that apply — or add your own below</div>
+        <button type="button" class="sub-opt" data-code="oral_contraceptive" onclick="tog(this)"><span class="tick"></span>The pill / hormonal IUD or implant</button>
+        <button type="button" class="sub-opt" data-code="hrt" onclick="tog(this)"><span class="tick"></span>HRT / menopause hormone therapy</button>
+        <button type="button" class="sub-opt" data-code="testosterone" onclick="tog(this)"><span class="tick"></span>Testosterone therapy (TRT)</button>
+        <button type="button" class="sub-opt" data-code="gender_affirming" onclick="tog(this)"><span class="tick"></span>Hormone therapy for transition</button>
+        <button type="button" class="sub-opt" data-code="_other" onclick="tog(this)"><span class="tick"></span>Something else — type below</button>
+        <textarea id="hormone-other" placeholder="Type here"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block safety-critical">
+    <div class="safety-critical-badge">SAFETY</div>
+    <div class="q-label">Are you on a blood thinner, or regular aspirin? <span class="req-badge">Required</span></div>
+    <div class="q-sub">Warfarin, Eliquis, Xarelto, Plavix (clopidogrel), or daily aspirin</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="thinner-yes" onclick="yn('thinner','yes')">Yes</button>
+      <button type="button" class="big-btn" id="thinner-no" onclick="yn('thinner','no')">No</button>
+    </div>
+    <div class="err-msg">Please answer this question.</div>
+    <div class="expand" id="exp-thinner">
+      <div class="sub-opts">
+        <div class="sub-hint">Tap all that apply — or add your own below</div>
+        <button type="button" class="sub-opt" data-code="warfarin" onclick="tog(this)"><span class="tick"></span>Warfarin</button>
+        <button type="button" class="sub-opt" data-code="doac" onclick="tog(this)"><span class="tick"></span>Eliquis / Xarelto / Pradaxa (a DOAC)</button>
+        <button type="button" class="sub-opt" data-code="clopidogrel" onclick="tog(this)"><span class="tick"></span>Plavix (clopidogrel)</button>
+        <button type="button" class="sub-opt" data-code="aspirin" onclick="tog(this)"><span class="tick"></span>Daily aspirin</button>
+        <button type="button" class="sub-opt" data-code="_other" onclick="tog(this)"><span class="tick"></span>Something else — type below</button>
+        <textarea id="thinner-other" placeholder="Type here"></textarea>
+      </div>
+      <div class="safety">⚠️ This is important before any formula containing Vitamin K2 or fish oil is finalised — Barbara reviews this personally.</div>
+    </div>
+  </div>
+
+  <div class="q-block" data-field="you-confirm-note">
+    <div class="q-sub">These three answers will be shown back to you at the end to double-check before you submit.</div>
+  </div>
+</div>
+
+<!-- ============ STEP 3 — MEDICAL CONDITIONS ============ -->
+<div class="step" data-step="3">
+  <div class="step-title">Medical conditions</div>
+  <div class="step-sub">Anything diagnosed by a doctor.</div>
+
+  <div class="q-block">
+    <div class="q-label">Any diagnosed medical conditions?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="cond-yes" onclick="yn('cond','yes')">Yes</button>
+      <button type="button" class="big-btn" id="cond-no" onclick="yn('cond','no')">No</button>
+    </div>
+    <div class="expand" id="exp-cond">
+      <div class="sub-opts">
+        <div class="sub-hint">Tap all that apply</div>
+        <button type="button" class="sub-opt urgent" data-code="hashimoto" onclick="togCond(this)"><span class="tick"></span>Underactive thyroid or Hashimoto's</button>
+        <button type="button" class="sub-opt" data-code="graves" onclick="togCond(this)"><span class="tick"></span>Overactive thyroid or Graves' disease</button>
+        <button type="button" class="sub-opt" data-code="coeliac" onclick="togCond(this)"><span class="tick"></span>Coeliac disease (cannot eat gluten)</button>
+        <button type="button" class="sub-opt urgent" data-code="thalassemia" onclick="togCond(this)"><span class="tick"></span>Thalassemia (minor or major)</button>
+        <button type="button" class="sub-opt" data-code="anaemia" onclick="togCond(this)"><span class="tick"></span>Iron deficiency anaemia</button>
+        <button type="button" class="sub-opt urgent" data-code="renal_impairment" onclick="togCond(this)"><span class="tick"></span>Kidney (renal) impairment or chronic kidney disease</button>
+        <button type="button" class="sub-opt urgent" data-code="malignancy" onclick="togCond(this)"><span class="tick"></span>Active cancer or currently undergoing chemotherapy</button>
+        <button type="button" class="sub-opt" data-code="diabetes" onclick="togCond(this)"><span class="tick"></span>Type 1 or Type 2 diabetes</button>
+        <button type="button" class="sub-opt" data-code="hypertension" onclick="togCond(this)"><span class="tick"></span>High blood pressure</button>
+        <button type="button" class="sub-opt" data-code="hypotension" onclick="togCond(this)"><span class="tick"></span>Low blood pressure</button>
+        <button type="button" class="sub-opt" data-code="ibd" onclick="togCond(this)"><span class="tick"></span>Crohn's disease or ulcerative colitis</button>
+        <button type="button" class="sub-opt" data-code="restless_legs" onclick="togCond(this)"><span class="tick"></span>Restless legs syndrome</button>
+        <button type="button" class="sub-opt" data-code="_other" onclick="togCond(this)"><span class="tick"></span>Something else — type below</button>
+        <textarea id="cond-other" placeholder="Type any other conditions here"></textarea>
+        <div class="safety">⚠️ Thalassemia, Hashimoto's, kidney impairment, and active cancer/chemotherapy directly affect which supplements and doses are safe. Barbara reviews any of these personally before your formula is issued.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="expand" id="exp-iodine">
+    <div class="q-block">
+      <div class="q-label">Do you take iodine or kelp/seaweed supplements, or eat seaweed snacks regularly?</div>
+      <div class="q-sub">You've mentioned a thyroid condition — this matters for that specifically</div>
+      <div class="btn-row">
+        <button type="button" class="big-btn" id="iodine-yes" onclick="yn('iodine','yes')">Yes</button>
+        <button type="button" class="big-btn" id="iodine-no" onclick="yn('iodine','no')">No</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Shellfish allergy? <span class="req-badge">Required</span></div>
+    <div class="q-sub">Some supplements contain shellfish-derived ingredients</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="shell-yes" onclick="yn('shell','yes')">Yes</button>
+      <button type="button" class="big-btn" id="shell-no" onclick="yn('shell','no')">No</button>
+    </div>
+    <div class="err-msg">Please answer this question.</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Have you had gastric bypass/sleeve surgery, or a diagnosed inflammatory bowel disease?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="surg-yes" onclick="yn('surg','yes')">Yes</button>
+      <button type="button" class="big-btn" id="surg-no" onclick="yn('surg','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Any heavy periods, recent childbirth, surgery, or significant blood loss in the last 12 months?</div>
+    <div class="q-sub">Optional — helps with iron and B12 review</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="bloodevent-yes" onclick="yn('bloodevent','yes')">Yes</button>
+      <button type="button" class="big-btn" id="bloodevent-no" onclick="yn('bloodevent','no')">No</button>
+    </div>
+    <div class="expand" id="exp-bloodevent">
+      <div class="sub-opts">
+        <textarea id="bloodevent-detail" placeholder="Briefly describe what and when"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 4 — CURRENT MEDICATIONS ============ -->
+<div class="step" data-step="4">
+  <div class="step-title">Current medications</div>
+  <div class="step-sub">Includes prescriptions and over-the-counter medicines.</div>
+
+  <div class="q-block">
+    <div class="q-label">Are you taking any medications?<span class="req-badge">Required</span></div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="meds-yes" onclick="yn('meds','yes')">Yes</button>
+      <button type="button" class="big-btn" id="meds-no" onclick="yn('meds','no')">No</button>
+    </div>
+    <div class="err-msg">Please answer this question.</div>
+    <div class="expand" id="exp-meds">
+      <div class="sub-opts">
+        <div class="sub-hint">Tap all that apply — or add your own below</div>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Oroxine (thyroid)</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Eutroxsig (thyroid)</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Eltroxin (thyroid)</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Levoxine (thyroid)</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Levothyroxine (thyroid — other brand)</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Folic acid</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Iron tablets or iron infusion</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Blood pressure medication</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Something else — type below</button>
+        <textarea id="meds-other" placeholder="Type any other medications here"></textarea>
+        <div class="sub-hint" style="margin-top:10px;">For each one above, how much do you take and what time of day?</div>
+        <textarea id="meds-dosing" placeholder="e.g. iron tablet 1 in the morning; levoxine first thing, 30 min before food"></textarea>
+        <div class="safety">⚠️ If you take a thyroid tablet, please tell us how many hours apart you take any iron or mineral supplements — they can stop the thyroid medicine working if taken too close together.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you take a daily reflux/antacid medication?</div>
+    <div class="q-sub">e.g. Nexium, Losec, Somac, Zantac, Pantoprazole</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="reflux-yes" onclick="yn('reflux','yes')">Yes</button>
+      <button type="button" class="big-btn" id="reflux-no" onclick="yn('reflux','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you take a diabetes medication (e.g. Metformin)?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="diabmed-yes" onclick="yn('diabmed','yes')">Yes</button>
+      <button type="button" class="big-btn" id="diabmed-no" onclick="yn('diabmed','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Are you on a cholesterol medication (a statin)?</div>
+    <div class="q-sub">e.g. atorvastatin, rosuvastatin</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="statin-yes" onclick="yn('statin','yes')">Yes</button>
+      <button type="button" class="big-btn" id="statin-no" onclick="yn('statin','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Any mental-health or seizure medication?</div>
+    <div class="q-sub">Antidepressant, mood stabiliser, antipsychotic, or anticonvulsant</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="mhmed-yes" onclick="yn('mhmed','yes')">Yes</button>
+      <button type="button" class="big-btn" id="mhmed-no" onclick="yn('mhmed','no')">No</button>
+    </div>
+    <div class="expand" id="exp-mhmed">
+      <div class="sub-opts">
+        <textarea id="mhmed-detail" placeholder="Which one(s), if you're comfortable sharing"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 5 — CURRENT SUPPLEMENTS ============ -->
+<div class="step" data-step="5">
+  <div class="step-title">Current supplements</div>
+  <div class="step-sub">This helps your naturopath avoid duplicating or clashing with what you're already taking.</div>
+
+  <div class="q-block">
+    <div class="q-label">Are you currently taking any vitamins, minerals, or supplements?<span class="req-badge">Required</span></div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="supp-yes" onclick="yn('supp','yes')">Yes</button>
+      <button type="button" class="big-btn" id="supp-no" onclick="yn('supp','no')">No</button>
+    </div>
+    <div class="err-msg">Please answer this question.</div>
+    <div class="expand" id="exp-supp">
+      <div class="sub-opts">
+        <div class="sub-hint">Tap all that apply — or add your own below</div>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Multivitamin</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Vitamin D3</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Fish oil / omega-3</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Magnesium</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Vitamin B12</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Iron</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Vitamin A</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Zinc</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Probiotics</button>
+        <button type="button" class="sub-opt" onclick="tog(this)"><span class="tick"></span>Something else — type below</button>
+        <textarea id="supp-other" placeholder="Type any other vitamins/supplements here"></textarea>
+        <div class="sub-hint" style="margin-top:10px;">Roughly what dose, and how long have you been taking them?</div>
+        <textarea id="supp-dosing" placeholder="e.g. vitamin D3 1000IU daily for about a year; vitamin A 5000IU daily"></textarea>
+        <div class="safety">⚠️ Please include the dose if you know it, especially for vitamin A, zinc, or iodine — these have safe upper limits your naturopath needs to check against what we may add.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 6 — DIET & LIFESTYLE ============ -->
+<div class="step" data-step="6">
+  <div class="step-title">Diet &amp; lifestyle</div>
+  <div class="step-sub">Helps tailor your formula to how you actually eat and live.</div>
+
+  <div class="q-block">
+    <div class="q-label">What best describes your diet? <span class="req-badge">Required</span></div>
+    <div class="grid-2" id="diet-grid">
+      <button type="button" class="grid-btn diet-btn" data-code="omnivore" onclick="selectGrid('diet-grid',this)">Omnivore</button>
+      <button type="button" class="grid-btn diet-btn" data-code="vegetarian" onclick="selectGrid('diet-grid',this)">Vegetarian</button>
+      <button type="button" class="grid-btn diet-btn" data-code="vegan" onclick="selectGrid('diet-grid',this)">Vegan</button>
+    </div>
+    <div class="err-msg">Please make a selection.</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">How many times a week do you eat oily fish? <span class="req-badge">Required</span></div>
+    <div class="q-sub">Salmon, sardines, mackerel, trout, tuna</div>
+    <div class="sub-opts" id="oilyfish-opts">
+      <button type="button" class="freq-btn" data-value="3plus" onclick="selectFreq('oilyfish',this)">3 or more times a week</button>
+      <button type="button" class="freq-btn" data-value="1-2" onclick="selectFreq('oilyfish',this)">1 to 2 times a week</button>
+      <button type="button" class="freq-btn" data-value="rarely" onclick="selectFreq('oilyfish',this)">Rarely or never</button>
+    </div>
+    <div class="err-msg">Please make a selection.</div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">How often do you exercise?</div>
+    <div class="grid-2" id="ex-grid">
+      <button type="button" class="grid-btn" onclick="selectGrid('ex-grid',this)">Rarely or never</button>
+      <button type="button" class="grid-btn" onclick="selectGrid('ex-grid',this)">1–2 times a week</button>
+      <button type="button" class="grid-btn" onclick="selectGrid('ex-grid',this)">3–4 times a week</button>
+      <button type="button" class="grid-btn" onclick="selectGrid('ex-grid',this)">5 or more times</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Alcohol — how many standard drinks per week?</div>
+    <div class="grid-2" id="alc-grid">
+      <button type="button" class="grid-btn" onclick="selectGrid('alc-grid',this)">None</button>
+      <button type="button" class="grid-btn" onclick="selectGrid('alc-grid',this)">1–3 per week</button>
+      <button type="button" class="grid-btn" onclick="selectGrid('alc-grid',this)">4–10 per week</button>
+      <button type="button" class="grid-btn" onclick="selectGrid('alc-grid',this)">More than 10</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you smoke?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="smoke-yes" onclick="yn('smoke','yes')">Yes</button>
+      <button type="button" class="big-btn" id="smoke-no" onclick="yn('smoke','no')">No</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 7 — SLEEP ============ -->
+<div class="step" data-step="7">
+  <div class="step-title">Sleep</div>
+  <div class="sec-note">🧬 Sleep quality directly affects DNA methylation. Your answers help Barbara match the right supplements to your results.</div>
+
+  <div class="q-block">
+    <div class="q-label">Do you regularly lie awake unable to switch your mind off at bedtime?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="sleep1-yes" onclick="sleepYn('sleep1','yes')">Yes</button>
+      <button type="button" class="big-btn" id="sleep1-no" onclick="sleepYn('sleep1','no')">No</button>
+    </div>
+    <div class="expand" id="exp-sleep1">
+      <div class="sub-opts"><div class="sub-hint">How often?</div>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep1',this)">3 or more nights a week</button>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep1',this)">Less often than that</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you regularly wake during the night with thoughts going around and around?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="sleep2-yes" onclick="sleepYn('sleep2','yes')">Yes</button>
+      <button type="button" class="big-btn" id="sleep2-no" onclick="sleepYn('sleep2','no')">No</button>
+    </div>
+    <div class="expand" id="exp-sleep2">
+      <div class="sub-opts"><div class="sub-hint">How often?</div>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep2',this)">3 or more nights a week</button>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep2',this)">Less often than that</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you regularly wake too early and cannot get back to sleep?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="sleep3-yes" onclick="sleepYn('sleep3','yes')">Yes</button>
+      <button type="button" class="big-btn" id="sleep3-no" onclick="sleepYn('sleep3','no')">No</button>
+    </div>
+    <div class="expand" id="exp-sleep3">
+      <div class="sub-opts"><div class="sub-hint">How often?</div>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep3',this)">3 or more nights a week</button>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep3',this)">Less often than that</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Restless or twitchy legs at night?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="sleep4-yes" onclick="sleepYn('sleep4','yes')">Yes</button>
+      <button type="button" class="big-btn" id="sleep4-no" onclick="sleepYn('sleep4','no')">No</button>
+    </div>
+    <div class="expand" id="exp-sleep4">
+      <div class="sub-opts"><div class="sub-hint">How often?</div>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep4',this)">3 or more nights a week</button>
+        <button type="button" class="freq-btn" onclick="selectFreq('sleep4',this)">Less often than that</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sleep-duration" id="sleep-duration-block">
+    <div class="q-label" style="margin-top:1rem;">How long has this been going on?</div>
+    <div class="freq-row" style="margin-top:8px;" id="sleep-duration-grid">
+      <button type="button" class="freq-btn" onclick="selectDuration(this)">Less than 3 months</button>
+      <button type="button" class="freq-btn" onclick="selectDuration(this)">3 months or more</button>
+      <button type="button" class="freq-btn" onclick="selectDuration(this)">Years — it is ongoing</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 8 — MOOD & SYMPTOMS ============ -->
+<div class="step" data-step="8">
+  <div class="step-title">How have you been feeling lately?</div>
+  <div class="step-sub">Tick or answer what applies — it's fine if none of this applies to you.</div>
+
+  <div class="q-block">
+    <div class="q-label">Do you feel anxious, irritable, or unable to switch your mind off — 3 or more times a week?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="anx-yes" onclick="yn('anx','yes')">Yes</button>
+      <button type="button" class="big-btn" id="anx-no" onclick="yn('anx','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you get frequent headaches or migraines?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="head-yes" onclick="yn('head','yes')">Yes</button>
+      <button type="button" class="big-btn" id="head-no" onclick="yn('head','no')">No</button>
+    </div>
+    <div class="expand" id="exp-head">
+      <div class="sub-opts"><div class="sub-hint">How often?</div>
+        <button type="button" class="freq-btn" onclick="selectFreq('head',this)">3 or more times a week</button>
+        <button type="button" class="freq-btn" onclick="selectFreq('head',this)">Less often than that</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you experience heart palpitations, or a racing or irregular heartbeat?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="palp-yes" onclick="yn('palp','yes')">Yes</button>
+      <button type="button" class="big-btn" id="palp-no" onclick="yn('palp','no')">No</button>
+    </div>
+    <div class="safety">⚠️ Palpitations can have many causes. Barbara reviews this personally and, if needed, will contact you directly to recommend seeing your GP.</div>
+  </div>
+
+  <div class="expand" id="exp-urgent-detail">
+    <div class="q-block">
+      <div class="q-label">You've mentioned headaches/migraines and/or palpitations — tell us a bit more?</div>
+      <div class="q-sub">How often, how severe, and when it started</div>
+      <textarea id="urgent-detail" placeholder="e.g. racing heart for a few seconds, a couple of times a week, started last month"></textarea>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you get regular nausea?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="nausea-yes" onclick="yn('nausea','yes')">Yes</button>
+      <button type="button" class="big-btn" id="nausea-no" onclick="yn('nausea','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you notice problems with memory, focus, or mental clarity?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="cog-yes" onclick="yn('cog','yes')">Yes</button>
+      <button type="button" class="big-btn" id="cog-no" onclick="yn('cog','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Do you often feel low in energy or fatigued, even after rest?</div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="energy-yes" onclick="yn('energy','yes')">Yes</button>
+      <button type="button" class="big-btn" id="energy-no" onclick="yn('energy','no')">No</button>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-label">Anything else you've noticed recently?</div>
+    <div class="q-sub">Tap all that apply — it's fine to tick none</div>
+    <div class="sub-opts" id="extra-symptoms">
+      <button type="button" class="sub-opt" data-code="racing_thoughts" onclick="tog(this)"><span class="tick"></span>Racing thoughts or mental overactivity</button>
+      <button type="button" class="sub-opt" data-code="hyperactivity" onclick="tog(this)"><span class="tick"></span>Hyperactivity</button>
+      <button type="button" class="sub-opt" data-code="histamine_intolerance" onclick="tog(this)"><span class="tick"></span>Histamine intolerance</button>
+      <button type="button" class="sub-opt" data-code="muscle_tension" onclick="tog(this)"><span class="tick"></span>Muscle tension</button>
+      <button type="button" class="sub-opt" data-code="aggression" onclick="tog(this)"><span class="tick"></span>Aggression</button>
+      <button type="button" class="sub-opt" data-code="skin_flushing" onclick="tog(this)"><span class="tick"></span>Skin flushing</button>
+      <button type="button" class="sub-opt" data-code="tinnitus" onclick="tog(this)"><span class="tick"></span>Tinnitus (ringing in the ears)</button>
+      <button type="button" class="sub-opt" data-code="dry_mouth" onclick="tog(this)"><span class="tick"></span>Dry mouth</button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="q-block">
+    <div class="q-label">Anything else Barbara should know? <span class="hint">(optional)</span></div>
+    <div class="btn-row">
+      <button type="button" class="big-btn" id="other-yes" onclick="yn('other','yes')">Yes</button>
+      <button type="button" class="big-btn" id="other-no" onclick="yn('other','no')">No</button>
+    </div>
+    <div class="expand" id="exp-other">
+      <div class="sub-opts">
+        <textarea id="other-text" placeholder="Your health goals, concerns, or notes from your call with Barbara"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STEP 9 — REVIEW & CONFIRM ============ -->
+<div class="step" data-step="9">
+  <div class="step-title">Review &amp; confirm</div>
+  <div class="step-sub">Please double-check these before submitting — especially the safety answers below.</div>
+  <div id="reviewFlags"></div>
+  <div id="reviewSummary"></div>
+</div>
+
+<div class="nav-row">
+  <button type="button" class="btn-secondary" id="backBtn" onclick="goStep(currentStep-1)" style="visibility:hidden;">Back</button>
+  <button type="button" class="btn-primary" id="nextBtn" onclick="goStep(currentStep+1)">Next</button>
+</div>
+
+</div>
+
+<div class="done" id="doneView">
+  <div class="done-circle">✅</div>
+  <div class="done-title">Thank you</div>
+  <div class="done-sub" id="doneSub">Barbara has everything she needs. She will be in touch shortly to introduce herself over a quick call.</div>
+  <div style="margin-top:1.5rem;font-size:14px;color:#555;">🔒 Your information is secure &nbsp;·&nbsp; Reference: <strong id="clientRefDisplaySuccess">—</strong></div>
+</div>
+
+</div>
+
+<script>
+const TOTAL_STEPS = 9;
+const STEP_TITLES = {1:"About you",2:"Safety check",3:"Medical conditions",4:"Medications",5:"Supplements",6:"Diet & lifestyle",7:"Sleep",8:"How you feel",9:"Review & confirm"};
+var currentStep = 1;
+
+const SUBMIT_ENDPOINT = "/.netlify/functions/submit-health-profile";
+const PREFILL_LOOKUP_ENDPOINT = "/.netlify/functions/get-intake-prefill";
+
+function getClientId(){ const p=new URLSearchParams(window.location.search); return p.get("cid")||p.get("clientId")||"UNKNOWN"; }
+var CLIENT_ID = getClientId();
+document.getElementById("clientRefDisplay").textContent = CLIENT_ID;
+document.getElementById("clientRefDisplaySuccess").textContent = CLIENT_ID;
+
+// Used only when the URL had no ?cid=/?clientId= of its own — lets a token lookup's
+// response supply the client's reference code once it comes back.
+function _setClientIdFromLookup(id){
+  if(!id) return;
+  var p = new URLSearchParams(window.location.search);
+  if (p.get('cid') || p.get('clientId')) return;
+  CLIENT_ID = id;
+  document.getElementById('clientRefDisplay').textContent = CLIENT_ID;
+  document.getElementById('clientRefDisplaySuccess').textContent = CLIENT_ID;
+}
+
+// ---- Pre-fill from subscription/signup data ----------------------------------
+// The client already gave us name, mobile, email and delivery address when they
+// subscribed and paid (Shopify checkout). They should never have to type that in
+// again here. Whatever system links to this form (Shopify order confirmation,
+// Neveen's portal, a Supabase-backed emailed link, etc.) can hand that data over
+// in either of two ways, and this form accepts both:
+//   1) window.GENETHRIVE_PREFILL = {...} set by the hosting page BEFORE this
+//      form's own <script> block runs (e.g. server-side templated into the page,
+//      or written by the portal that generates the client's personal link) — the
+//      preferred path once Neveen's backend exists, since it avoids putting
+//      personal data in a URL.
+//   2) URL query parameters, e.g. ?cid=GT-2026-0002&firstName=Jacqueline&
+//      lastName=Courtney&email=...&mobile=...&addrStreet=...&addrSuburb=...&
+//      addrState=NSW&addrPostcode=2000 — useful for testing, or for a simple
+//      emailed-link flow with no backend yet.
+// Fields that arrive this way are shown pre-filled and locked (greyed out, with
+// a small "Edit" link) rather than editable blank inputs — matching, not
+// duplicating, what we already collected at checkout. If a client's real
+// address changed since they subscribed, "Edit" unlocks that one field.
+function getPrefillData(){
+  var data = {};
+  if (window.GENETHRIVE_PREFILL && typeof window.GENETHRIVE_PREFILL === 'object'){
+    Object.keys(window.GENETHRIVE_PREFILL).forEach(function(k){ data[k] = window.GENETHRIVE_PREFILL[k]; });
+  }
+  var p = new URLSearchParams(window.location.search);
+  ['firstName','lastName','email','mobile','addrStreet','addrSuburb','addrState','addrPostcode'].forEach(function(k){
+    var v = p.get(k);
+    if (v) data[k] = v;
+  });
+  return data;
+}
+var PREFILL = getPrefillData();
+var _prefillApplied = false;
+
+function _markPrefilled(qb, fieldEl, unlockIds){
+  _prefillApplied = true;
+  if(!qb || qb.querySelector('.prefill-note')) return;
+  var note = document.createElement('div');
+  note.className = 'prefill-note';
+  note.innerHTML = 'From your subscription. <a href="#" data-unlock="'+unlockIds.join(',')+'">Edit</a>';
+  qb.appendChild(note);
+  note.querySelector('a').addEventListener('click', function(ev){
+    ev.preventDefault();
+    unlockIds.forEach(function(id){ unlockPrefilledField(id); });
+    note.remove();
+  });
+}
+function unlockPrefilledField(id){
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.readOnly = false; el.disabled = false;
+  el.classList.remove('locked-field');
+}
+function lockTextField(id, value){
+  if(!value) return;
+  var el = document.getElementById(id); if(!el) return;
+  el.value = value;
+  el.readOnly = true;
+  el.classList.add('locked-field');
+  _markPrefilled(el.closest('.q-block'), el, [id]);
+}
+function lockAddressState(id, value){
+  if(!value) return;
+  var el = document.getElementById(id); if(!el) return;
+  var match = null;
+  for (var i=0;i<el.options.length;i++){
+    if (el.options[i].value && el.options[i].value.toUpperCase() === String(value).trim().toUpperCase()){ match = el.options[i].value; break; }
+  }
+  if(!match) return;
+  el.value = match;
+  el.disabled = true;
+  el.classList.add('locked-field');
+  _markPrefilled(el.closest('.q-block'), el, [id]);
+}
+
+function applyPrefillLocks(){
+  lockTextField('firstName', PREFILL.firstName);
+  lockTextField('lastName', PREFILL.lastName);
+  lockTextField('email', PREFILL.email);
+  lockTextField('mobile', PREFILL.mobile);
+  lockTextField('addrStreet', PREFILL.addrStreet);
+  lockTextField('addrSuburb', PREFILL.addrSuburb);
+  lockTextField('addrPostcode', PREFILL.addrPostcode);
+  lockAddressState('addrState', PREFILL.addrState);
+  if (_prefillApplied){ var pb = document.getElementById('prefillBanner'); if(pb) pb.style.display = 'block'; }
+}
+
+// ---- Third pre-fill source: secure token-based lookup ------------------------
+// The real emailed-link flow is `?token=...&cid=...` — an opaque token, no raw
+// personal data in the URL. We fetch that client's known details from a
+// serverless endpoint and feed them into the exact same PREFILL/lock/auto-skip
+// machinery above, so nothing about Step 1's behaviour needs to be duplicated.
+var _urlParamsForToken = new URLSearchParams(window.location.search);
+var _prefillToken = _urlParamsForToken.get('token');
+
+function _showStep1Loading(){
+  var fields = document.getElementById('step1Fields');
+  var loading = document.getElementById('prefillLoadingBanner');
+  if (fields) fields.style.display = 'none';
+  if (loading) loading.style.display = 'block';
+}
+function _hideStep1Loading(){
+  var fields = document.getElementById('step1Fields');
+  var loading = document.getElementById('prefillLoadingBanner');
+  if (fields) fields.style.display = '';
+  if (loading) loading.style.display = 'none';
+}
+function _showPrefillLookupFailedNote(){
+  var el = document.getElementById('prefillFailBanner');
+  if (el) el.style.display = 'block';
+}
+function _mergeTokenPrefill(json){
+  if (!json || typeof json !== 'object') return;
+  ['firstName','lastName','email','mobile','addrStreet','addrSuburb','addrState','addrPostcode'].forEach(function(k){
+    if (json[k]) PREFILL[k] = json[k];
+  });
+  if (json.clientId) _setClientIdFromLookup(json.clientId);
+}
+
+if (_prefillToken){
+  _showStep1Loading();
+  fetch(PREFILL_LOOKUP_ENDPOINT + '?token=' + encodeURIComponent(_prefillToken))
+    .then(function(res){
+      if (!res.ok) throw new Error('Prefill lookup failed: ' + res.status);
+      return res.json();
+    })
+    .then(function(json){
+      _mergeTokenPrefill(json);
+      applyPrefillLocks();
+      _hideStep1Loading();
+      maybeAutoSkipStep1();
+    })
+    .catch(function(err){
+      console.error('Prefill lookup failed, falling back to a blank editable Step 1.', err);
+      _hideStep1Loading();
+      _showPrefillLookupFailedNote();
+    });
+} else {
+  applyPrefillLocks();
+}
+
+// Silent check (no DOM side-effects) — used only to decide whether Step 1 can be
+// skipped because everything on it is already known. DOB and sex aren't captured
+// at checkout, so Step 1 only auto-skips once those are filled in too (e.g. on a
+// second visit, or once checkout is extended to capture them).
+function _isStep1Complete(){
+  var required = ['firstName','lastName','email','mobile','addrStreet','addrSuburb','addrPostcode'];
+  for (var i=0;i<required.length;i++){
+    var el = document.getElementById(required[i]);
+    if(!el || !el.value || !el.value.trim()) return false;
+  }
+  if(!document.getElementById('addrState').value) return false;
+  if(!_dobIso()) return false;
+  if(!gridState['sex-grid']) return false;
+  var email = _textVal('email');
+  if(email.indexOf('@')===-1) return false;
+  return true;
+}
+
+var ynState = {}, gridState = {}, freqState = {}, durationSel = null;
+
+function clearExpand(expId){
+  var e=document.getElementById(expId); if(!e) return;
+  Array.prototype.forEach.call(e.querySelectorAll('.sub-opt.sel'), function(b){ b.classList.remove('sel'); var t=b.querySelector('.tick'); if(t) t.textContent=''; });
+  Array.prototype.forEach.call(e.querySelectorAll('.freq-btn.sel'), function(b){ b.classList.remove('sel'); });
+  Array.prototype.forEach.call(e.querySelectorAll('textarea'), function(t){ t.value=''; });
+}
+function _qblock(btn){ return btn.closest('.q-block'); }
+
+function yn(id, val){
+  ynState[id]=val;
+  var y=document.getElementById(id+'-yes'), n=document.getElementById(id+'-no');
+  if(y) y.classList.toggle('yes', val==='yes');
+  if(n) n.classList.toggle('no', val==='no');
+  var exp=document.getElementById('exp-'+id);
+  if(exp){ if(val==='yes'){ exp.classList.add('open'); } else { exp.classList.remove('open'); clearExpand('exp-'+id); } }
+  var qb=(y||n)?_qblock(y||n):null; if(qb) qb.classList.remove('missing');
+  _syncUrgentDetail();
+  _syncIodine();
+  if (id==='mhmed' && val!=='yes') document.getElementById('mhmed-detail').value='';
+  if (id==='bloodevent' && val!=='yes') document.getElementById('bloodevent-detail').value='';
+}
+function sleepYn(id, val){
+  ynState[id]=val;
+  var y=document.getElementById(id+'-yes'), n=document.getElementById(id+'-no');
+  if(y) y.classList.toggle('yes', val==='yes');
+  if(n) n.classList.toggle('no', val==='no');
+  var exp=document.getElementById('exp-'+id);
+  if(exp){ if(val==='yes'){ exp.classList.add('open'); } else { exp.classList.remove('open'); clearExpand('exp-'+id); } }
+  _syncSleepDuration();
+}
+function _syncSleepDuration(){
+  var any=['sleep1','sleep2','sleep3','sleep4'].some(function(k){ return ynState[k]==='yes'; });
+  var block=document.getElementById('sleep-duration-block'); if(!block) return;
+  if(any){ block.classList.add('show'); } else { block.classList.remove('show'); durationSel=null;
+    var g=document.getElementById('sleep-duration-grid'); if(g) Array.prototype.forEach.call(g.querySelectorAll('.freq-btn.sel'), function(b){ b.classList.remove('sel'); }); }
+}
+function _syncUrgentDetail(){
+  var any=ynState['head']==='yes' || ynState['palp']==='yes';
+  var el=document.getElementById('exp-urgent-detail'); if(!el) return;
+  if(any){ el.classList.add('open'); } else { el.classList.remove('open'); document.getElementById('urgent-detail').value=''; }
+}
+function _syncIodine(){
+  var el=document.getElementById('exp-iodine'); if(!el) return;
+  var hasThyroidCond = document.querySelectorAll('#exp-cond .sub-opt.sel[data-code="hashimoto"]').length>0;
+  if(hasThyroidCond){ el.classList.add('open'); } else { el.classList.remove('open'); ynState['iodine']=null;
+    var y=document.getElementById('iodine-yes'),n=document.getElementById('iodine-no'); if(y)y.classList.remove('yes'); if(n)n.classList.remove('no'); }
+}
+function tog(el){ el.classList.toggle('sel'); var t=el.querySelector('.tick'); if(t) t.textContent=el.classList.contains('sel')?'✓':''; }
+function togCond(el){ tog(el); _syncIodine(); }
+
+function selectGrid(gridId, el, code){
+  document.getElementById(gridId).querySelectorAll('button').forEach(function(b){ b.classList.remove('sel'); });
+  el.classList.add('sel');
+  gridState[gridId] = { text: el.textContent.trim(), code: code || el.getAttribute('data-code') || el.textContent.trim() };
+  var qb=_qblock(el); if(qb) qb.classList.remove('missing');
+}
+function selectFreq(id, el){
+  el.closest('.sub-opts').querySelectorAll('.freq-btn').forEach(function(b){ b.classList.remove('sel'); });
+  el.classList.add('sel');
+  freqState[id] = { text: el.textContent.trim(), value: el.getAttribute('data-value') || el.textContent.trim() };
+  if(id==='oilyfish'){ var qb=document.getElementById('oilyfish-opts').closest('.q-block'); if(qb) qb.classList.remove('missing'); }
+}
+function selectDuration(el){
+  document.getElementById('sleep-duration-grid').querySelectorAll('.freq-btn').forEach(function(b){ b.classList.remove('sel'); });
+  el.classList.add('sel'); durationSel = el.textContent.trim();
+}
+
+(function(){
+  var daySel=document.getElementById('dob-day'), yearSel=document.getElementById('dob-year');
+  if(daySel){ for(var d=1;d<=31;d++){ var o=document.createElement('option'); o.value=d; o.textContent=d; daySel.appendChild(o);} }
+  if(yearSel){ for(var y=2010;y>=1920;y--){ var o=document.createElement('option'); o.value=y; o.textContent=y; yearSel.appendChild(o);} }
+})();
+function _dobIso(){
+  var d=document.getElementById('dob-day').value, m=document.getElementById('dob-month').value, y=document.getElementById('dob-year').value;
+  if(!d||!m||!y) return null;
+  return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+}
+function _subVals(expId, useCode){
+  var e=document.getElementById(expId); if(!e) return [];
+  return Array.prototype.map.call(e.querySelectorAll('.sub-opt.sel'), function(b){
+    return useCode ? (b.getAttribute('data-code') || b.textContent.replace('✓','').trim()) : b.textContent.replace('✓','').trim();
+  });
+}
+function _textVal(id){ var e=document.getElementById(id); return e ? e.value.trim() : ''; }
+
+// ---- Per-step validation ----
+function validateStep(step){
+  var first=null;
+  document.querySelectorAll('.step[data-step="'+step+'"] .q-block.missing').forEach(function(b){ b.classList.remove('missing'); });
+  document.getElementById('reqMsg').style.display='none';
+  function needText(elId){
+    var el=document.getElementById(elId); if(!el) return;
+    var qb=el.closest('.q-block');
+    if(!el.value || !el.value.trim()){ qb.classList.add('missing'); if(!first) first=qb; }
+  }
+  function needYn(id){
+    if(!ynState[id]){ var b=document.getElementById(id+'-yes'); var qb=_qblock(b); qb.classList.add('missing'); if(!first) first=qb; }
+  }
+  if(step===1){
+    ['firstName','lastName','email','mobile','addrStreet','addrSuburb','addrPostcode'].forEach(needText);
+    if(!_dobIso()){ var qb=document.getElementById('qb-dob'); qb.classList.add('missing'); if(!first) first=qb; }
+    if(!gridState['sex-grid']){ var qb=document.getElementById('qb-sex'); qb.classList.add('missing'); if(!first) first=qb; }
+    if(!document.getElementById('addrState').value){ var qb=document.getElementById('qb-addrState'); qb.classList.add('missing'); if(!first) first=qb; }
+    var email=_textVal('email');
+    if(email && email.indexOf('@')===-1){ var qb=document.getElementById('qb-email'); qb.classList.add('missing'); if(!first) first=qb; }
+  }
+  if(step===2){
+    needYn('preg'); needYn('hormone'); needYn('thinner');
+  }
+  if(step===3){
+    needYn('shell');
+  }
+  if(step===4){
+    needYn('meds');
+    if(ynState['meds']==='yes'){
+      var m=_subVals('exp-meds'); var mt=_textVal('meds-other');
+      if(m.length===0 && !mt){ var qb=_qblock(document.getElementById('meds-yes')); qb.classList.add('missing'); if(!first) first=qb; }
+    }
+  }
+  if(step===5){
+    needYn('supp');
+    if(ynState['supp']==='yes'){
+      var s=_subVals('exp-supp'); var st=_textVal('supp-other');
+      if(s.length===0 && !st){ var qb=_qblock(document.getElementById('supp-yes')); qb.classList.add('missing'); if(!first) first=qb; }
+    }
+  }
+  if(step===6){
+    if(!gridState['diet-grid']){ var qb=document.getElementById('diet-grid').closest('.q-block'); qb.classList.add('missing'); if(!first) first=qb; }
+    if(!freqState['oilyfish']){ var qb=document.getElementById('oilyfish-opts').closest('.q-block'); qb.classList.add('missing'); if(!first) first=qb; }
+  }
+  if(first){
+    document.getElementById('reqMsg').style.display='block';
+    first.scrollIntoView({behavior:'smooth', block:'center'});
+    return false;
+  }
+  return true;
+}
+
+function updateProgress(){
+  document.getElementById('progressFill').style.width = Math.round((currentStep/TOTAL_STEPS)*100)+'%';
+  document.getElementById('progressLabel').textContent = 'Step '+currentStep+' of '+TOTAL_STEPS+' — '+STEP_TITLES[currentStep];
+}
+
+function buildReview(){
+  var record = buildRecord();
+  var flagsHtml = '';
+  record.urgentFlags.forEach(function(f){ flagsHtml += '<div class="summary-row flag">⚠️ '+f+'</div>'; });
+  document.getElementById('reviewFlags').innerHTML = flagsHtml || '<div class="summary-row" style="border:none;">No safety flags raised by your answers so far — Barbara still reviews every profile personally.</div>';
+
+  function row(q,a){ return '<div class="summary-row"><span class="sq">'+q+': </span><span class="sa">'+(a && a.length ? a : 'Not answered')+'</span></div>'; }
+  var html = '';
+  html += row('Name', (record.identity.firstName||'')+' '+(record.identity.lastName||''));
+  html += row('Pregnant / breastfeeding / planning', ynState['preg']||'—');
+  html += row('Hormone treatment', ynState['hormone']||'—');
+  html += row('Blood thinner / aspirin', ynState['thinner']||'—');
+  html += row('Diagnosed conditions', record.intake.conditions.length ? record.intake.conditions.join(', ') : 'None ticked');
+  html += row('Medications', record.intake.medications.length ? record.intake.medications.join(', ') : 'None');
+  html += row('Current supplements', record.intake.currentSupplements.length ? record.intake.currentSupplements.join(', ') : 'None');
+  html += row('Diet', record.intake.diet || '—');
+  document.getElementById('reviewSummary').innerHTML = html;
+}
+
+function goStep(step){
+  if(step > currentStep){
+    if(!validateStep(currentStep)) return;
+  }
+  if(step < 1) step = 1;
+  if(step > TOTAL_STEPS){ handleSubmit(); return; }
+
+  document.querySelectorAll('.step').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelector('.step[data-step="'+step+'"]').classList.add('active');
+  currentStep = step;
+  updateProgress();
+
+  document.getElementById('backBtn').style.visibility = (step===1) ? 'hidden' : 'visible';
+  var nextBtn = document.getElementById('nextBtn');
+  if(step === TOTAL_STEPS){
+    buildReview();
+    nextBtn.textContent = 'Submit my health profile';
+  } else {
+    nextBtn.textContent = 'Next';
+  }
+  window.scrollTo(0,0);
+}
+
+function listFromTextAndTags(tagVals, freeText){
+  var out = tagVals.slice();
+  if(freeText){ freeText.split(',').map(function(s){ return s.trim(); }).filter(Boolean).forEach(function(s){ out.push(s); }); }
+  return out;
+}
+
+function computeUrgentFlags(record){
+  var flags=[];
+  var cond=record.intake.conditions;
+  var meds=record.intake.medications.map(function(m){ return m.toLowerCase(); });
+  var supps=record.intake.currentSupplements.map(function(s){ return s.toLowerCase(); });
+  var thinners=record.additional.bloodThinners.map(function(s){ return s.toLowerCase(); });
+
+  if(cond.indexOf('malignancy')!==-1) flags.push("Client reports active cancer / currently undergoing chemotherapy — review before formulating.");
+  if(cond.indexOf('renal_impairment')!==-1) flags.push("Client reports kidney/renal impairment — dose ceilings must be reviewed.");
+  if(cond.indexOf('thalassemia')!==-1) flags.push("Client reports thalassemia — iron-related supplements require review.");
+  if(cond.indexOf('thalassemia')!==-1 && supps.some(function(s){ return s.indexOf('iron')!==-1; })) flags.push("Thalassemia AND already taking iron — iron overload risk, review urgently.");
+  if(ynState['thinner']==='yes' || meds.some(function(m){ return m.indexOf('warfarin')!==-1; })) flags.push("Client is on a blood thinner or regular aspirin — Vitamin K2/fish oil interaction risk, requires review before dispensing.");
+  if(meds.some(function(m){ return /chemo|methotrexate|tamoxifen|immunosuppress/.test(m); })) flags.push("Medication list includes a chemotherapy or immunosuppressant agent — review before formulating.");
+  if(ynState['hormone']==='yes') flags.push("Client is on hormone therapy — review estrogen/methylation-pathway interactions (COMT/CYP1B1) before finalising.");
+  if(ynState['statin']==='yes') flags.push("Client is on a statin — consider CoQ10 depletion when reviewing.");
+  if(ynState['reflux']==='yes' || ynState['diabmed']==='yes') flags.push("Client is on a reflux medication or metformin — mandatory sublingual B12 consideration.");
+  if(ynState['mhmed']==='yes') flags.push("Client is on a mental-health or seizure medication — check folate/5-HTP/SAMe-adjacent hold rules.");
+  if(cond.indexOf('hashimoto')!==-1 && ynState['iodine']==='yes') flags.push("Client has Hashimoto's and is taking iodine/kelp — excess iodine can worsen autoimmune thyroiditis, review.");
+  if(ynState['palp']==='yes') flags.push("Client reports heart palpitations — recommend contacting client directly to advise a GP review.");
+  if(ynState['head']==='yes') flags.push("Client reports frequent headaches/migraines — assess whether a GP review should be recommended.");
+  if(record.intake.pregnancy.status==='yes') flags.push("Client is pregnant, breastfeeding, or planning pregnancy — high-dose vitamin A and other restricted actives must be reviewed.");
+  if(record.intake.shellfishAllergy) flags.push("Client has a confirmed shellfish allergy — confirm capsule base excludes shellfish-derived actives.");
+  return flags;
+}
+
+function buildRecord(){
+  var condCodes = _subVals('exp-cond', true).filter(function(c){ return c!=='_other'; });
+  var condOther = _textVal('cond-other');
+  if(condOther) condOther.split(',').map(function(s){ return s.trim().toLowerCase().replace(/\s+/g,'_'); }).filter(Boolean).forEach(function(c){ condCodes.push(c); });
+
+  var medTags = _subVals('exp-meds');
+  var medications = ynState['meds']==='yes' ? listFromTextAndTags(medTags, _textVal('meds-other')) : [];
+
+  var suppTags = _subVals('exp-supp');
+  var currentSupplements = ynState['supp']==='yes' ? listFromTextAndTags(suppTags, _textVal('supp-other')) : [];
+
+  var hormoneTags = _subVals('exp-hormone', true).filter(function(c){ return c!=='_other'; });
+  var hormoneTherapies = ynState['hormone']==='yes' ? listFromTextAndTags(hormoneTags, _textVal('hormone-other')) : [];
+
+  var thinnerTags = _subVals('exp-thinner', true).filter(function(c){ return c!=='_other'; });
+  var bloodThinners = ynState['thinner']==='yes' ? listFromTextAndTags(thinnerTags, _textVal('thinner-other')) : [];
+
+  // activeSymptoms must only ever contain the Engine's exact 14-value enum
+  // (#methylation-symptoms checkboxes in the practitioner form: anxiety, irritability,
+  // racing_thoughts, insomnia, headache, palpitations, nausea, dry_mouth, tinnitus,
+  // skin_flushing, histamine_intolerance, hyperactivity, aggression, muscle_tension).
+  // Cognition/memory-focus and low-energy/fatigue are real, useful client questions
+  // but have NO matching Engine symptom code — pushing invented values here would
+  // silently fail to trigger anything and would fail the Engine's exact-enum checks
+  // if one is ever added. They are captured instead under additional.reportedSymptoms
+  // below for Barbara's visibility, not fed into the coded array.
+  var activeSymptoms = _subVals('extra-symptoms', true);
+  if(ynState['head']==='yes') activeSymptoms.push('headache');
+  if(ynState['palp']==='yes') activeSymptoms.push('palpitations');
+  if(ynState['nausea']==='yes') activeSymptoms.push('nausea');
+  if(ynState['anx']==='yes') activeSymptoms.push('anxiety');
+  if(ynState['sleep1']==='yes'||ynState['sleep2']==='yes'||ynState['sleep3']==='yes') activeSymptoms.push('insomnia');
+
+  var pregTags = _subVals('exp-preg');
+  var pregSubState='none';
+  if(pregTags.indexOf('Pregnant now')!==-1) pregSubState='pregnant';
+  else if(pregTags.indexOf('Breastfeeding')!==-1) pregSubState='breastfeeding';
+  else if(pregTags.indexOf('Planning pregnancy in the next 12 months')!==-1) pregSubState='planning';
+
+  var weightRaw=_textVal('weightKg');
+
+  var record = {
+    clientId: CLIENT_ID,
+    identity: {
+      firstName: _textVal('firstName'), lastName: _textVal('lastName'),
+      email: _textVal('email'), mobile: _textVal('mobile'),
+      address: { street:_textVal('addrStreet'), suburb:_textVal('addrSuburb'), state:document.getElementById('addrState').value, postcode:_textVal('addrPostcode') }
+    },
+    demographics: { dob:_dobIso(), sex: gridState['sex-grid']?gridState['sex-grid'].code:null, weightKg: weightRaw?parseFloat(weightRaw):undefined },
+    intake: {
+      conditions: condCodes,
+      medications: medications,
+      currentSupplements: currentSupplements,
+      pregnancy: { status: ynState['preg']||'no', subState: pregSubState },
+      diet: gridState['diet-grid'] ? gridState['diet-grid'].code : null,
+      oilyFish: freqState['oilyfish'] ? freqState['oilyfish'].value : null,
+      shellfishAllergy: ynState['shell']==='yes',
+      bariatricIbd: ynState['surg']==='yes',
+      activeSymptoms: activeSymptoms
+    },
+    additional: {
+      reportedSymptoms: {
+        memoryOrFocusIssues: ynState['cog']==='yes',
+        lowEnergyOrFatigue: ynState['energy']==='yes'
+      },
+      hormoneTherapy: hormoneTherapies,
+      bloodThinners: bloodThinners,
+      onStatin: ynState['statin']==='yes',
+      onRefluxMedication: ynState['reflux']==='yes',
+      onDiabetesMedication: ynState['diabmed']==='yes',
+      onMentalHealthOrSeizureMedication: ynState['mhmed']==='yes',
+      mentalHealthMedicationDetail: _textVal('mhmed-detail') || null,
+      iodineOrKelpUse: ynState['iodine']==='yes',
+      recentBloodLossEvent: ynState['bloodevent']==='yes',
+      recentBloodLossDetail: _textVal('bloodevent-detail') || null,
+      medicationsDosingNotes: _textVal('meds-dosing') || null,
+      currentSupplementsDetail: _textVal('supp-dosing') || null,
+      symptomDetail: _textVal('urgent-detail') || null,
+      lifestyle: { exerciseFreq: gridState['ex-grid']?gridState['ex-grid'].text:null, alcoholPerWeek: gridState['alc-grid']?gridState['alc-grid'].text:null, smokes: ynState['smoke']||null },
+      sleep: {
+        liesAwake:{answer:ynState['sleep1']||null, freq:freqState['sleep1']?freqState['sleep1'].value:null},
+        wakesNight:{answer:ynState['sleep2']||null, freq:freqState['sleep2']?freqState['sleep2'].value:null},
+        wakesEarly:{answer:ynState['sleep3']||null, freq:freqState['sleep3']?freqState['sleep3'].value:null},
+        restlessLegs:{answer:ynState['sleep4']||null, freq:freqState['sleep4']?freqState['sleep4'].value:null},
+        durationOfIssues: durationSel
+      },
+      otherNotes: ynState['other']==='yes' ? (_textVal('other-text')||null) : null
+    },
+    completedAt: new Date().toISOString()
+  };
+  var flags = computeUrgentFlags(record);
+  record.urgentFlags = flags;
+  record.requiresImmediateReview = flags.length > 0;
+  return record;
+}
+
+function _intakeFilename(record){
+  var slug=((record.identity.firstName||'')+'_'+(record.identity.lastName||'')).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'client';
+  var d=new Date(), p=function(n){return String(n).padStart(2,'0');};
+  return 'genethrive_intake_'+slug+'_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'.json';
+}
+function downloadRecordAsJson(record){
+  var blob=new Blob([JSON.stringify(record,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download=_intakeFilename(record);
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); },1000);
+}
+
+function handleSubmit(){
+  var record = buildRecord();
+  var btn=document.getElementById('nextBtn'); btn.disabled=true; btn.textContent='Submitting…';
+
+  fetch(SUBMIT_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)})
+    .then(function(res){
+      if(!res.ok) throw new Error('Submit failed: '+res.status);
+      document.getElementById('mainForm').style.display='none';
+      document.getElementById('doneView').style.display='block';
+      window.scrollTo(0,0);
+    })
+    .catch(function(err){
+      downloadRecordAsJson(record);
+      document.getElementById('mainForm').style.display='none';
+      document.getElementById('doneView').style.display='block';
+      document.getElementById('doneSub').textContent = 'No live server is connected yet, so your answers have been saved as a file on this device instead — nothing was lost. (For testing: load that file into the Engine\'s intake upload box.)';
+      window.scrollTo(0,0);
+      btn.disabled=false; btn.textContent='Submit my health profile';
+      console.error(err);
+    });
+}
+
+updateProgress();
+
+// If everything on Step 1 is already known from the subscription (name, mobile,
+// email, address — plus DOB/sex if those are ever added to checkout later), skip
+// straight to Step 2 rather than showing a page of already-answered questions.
+// The user can still tap Back from Step 2 to review/edit anything.
+function maybeAutoSkipStep1(){
+  if (_prefillApplied && _isStep1Complete()){
+    goStep(2);
+  }
+}
+// The token-lookup path (above) calls maybeAutoSkipStep1() itself once its async
+// fetch resolves; here we only need to run it inline for the synchronous sources
+// (window.GENETHRIVE_PREFILL / URL params), which have already been applied by now.
+if (!_prefillToken){
+  maybeAutoSkipStep1();
+}
+</script>
+</body>
+</html>
