@@ -4,7 +4,7 @@
  * Netlify Function shared helper: netlify/functions/sinch-sms.js
  *
  * Usage:
- *   const { sendSms } = require('./sinch-sms');
+ *   const { sendSms } = require('./_lib/sinch-sms');
  *   await sendSms('+61412345678', 'Your vitamins have been dispatched.');
  *
  * ENVIRONMENT VARIABLES (Netlify dashboard → Site → Environment variables):

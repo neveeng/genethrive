@@ -43,7 +43,7 @@ const STAGE_LABELS = {
 };
 
 // ── SMS via shared Sinch helper ──────────────────────────────────────────────
-const { sendSms } = require('./sinch-sms');
+const { sendSms } = require('./_lib/sinch-sms');
 
 // ── Handle a single row change ───────────────────────────────────────────────
 async function handleChange(payload) {

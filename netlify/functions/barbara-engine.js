@@ -38,7 +38,7 @@
 const crypto     = require('crypto');
 const Stripe     = require('stripe');
 const nodemailer = require('nodemailer');
-const { shopifyFetch }  = require('./shopify-token');
+const { shopifyFetch }  = require('./_lib/shopify-token');
 const { advanceStage }  = require('./sla-stage');
 
 function verifyToken(token) {
