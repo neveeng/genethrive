@@ -6,24 +6,33 @@
  * CALLED BY: barbara-portal.html
  *
  * ACTIONS:
- *   GET  ?action=get_client&clientId=GT-XXXX
- *        → Returns health profile + DNA results from Supabase
- *          (Barbara-authenticated only)
- *
  *   GET  ?action=get_pending
- *        → Returns list of clients awaiting Barbara's review
+ *        → Returns orders where current_stage = 'dna_uploaded' (via client_pipeline view)
+ *          i.e. DNA results received but formula not yet approved by Barbara
  *
- *   POST { action: 'sign_off', clientId, supplementList, notes, barbaraPin }
- *        → Saves Barbara's sign-off and supplement list to Supabase
+ *   GET  ?action=get_client&clientId=GT-2026-XXXX
+ *        → Returns health profile payload + DNA results for one order
+ *          (Barbara-authenticated only — clinical data)
+ *
+ *   POST { action: 'sign_off', clientId, supplementList, notes }
+ *        → Inserts status_event: formula.approved
  *        → Emails supplement list to TSI
- *        → Updates order_sla.barbara_reviewed_at + supplement_list_sent_at
- *        → Tags Shopify order: barbara-reviewed
+ *        → Emails ops (status only, no clinical content)
  *        → Releases Barbara's payment via Stripe ($65)
+ *        → Tags Shopify order: barbara-reviewed, formula-approved
+ *
+ * SCHEMA (new locked schema — replaces old order_sla / clients tables):
+ *   orders            — order_ref, client_contact_id, status, paid_at
+ *   client_contacts   — first_name, last_name, email, mobile, addr_*
+ *   health_profiles   — order_id (FK), payload (jsonb), raw_wizard_record (jsonb)
+ *   dna_results       — order_id (FK), clinical DNA data
+ *   status_events     — order_id, step_key (enum), actor_role, occurred_at
+ *   client_pipeline   — VIEW: derives current_stage from status_events
  *
  * PRIVACY:
  *   - Only returns clinical data to authenticated Barbara session
  *   - Supplement list sent to TSI by email only (not stored in Shopify)
- *   - Paul's dashboard never sees this data
+ *   - Paul's dashboard never sees clinical data
  *
  * ENVIRONMENT VARIABLES:
  *   SUPABASE_URL, SUPABASE_SERVICE_KEY
@@ -38,8 +47,37 @@
 const crypto     = require('crypto');
 const Stripe     = require('stripe');
 const nodemailer = require('nodemailer');
-const { shopifyFetch }  = require('./_lib/shopify-token');
-const { advanceStage }  = require('./sla-stage');
+const { shopifyFetch } = require('./_lib/shopify-token');
+
+// ── Supabase helpers ──────────────────────────────────────────────────────────
+
+async function supabaseGet(path) {
+  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
+    headers: {
+      'apikey':        process.env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+    },
+  });
+  const text = await res.text();
+  return { ok: res.ok, status: res.status, data: text ? JSON.parse(text) : null };
+}
+
+async function supabasePost(path, body) {
+  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'apikey':        process.env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      'Prefer':        'return=representation',
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  return { ok: res.ok, status: res.status, data: text ? JSON.parse(text) : null };
+}
+
+// ── Token verification ────────────────────────────────────────────────────────
 
 function verifyToken(token) {
   try {
@@ -57,39 +95,18 @@ function verifyToken(token) {
   } catch { return null; }
 }
 
+// ── Email transporter ─────────────────────────────────────────────────────────
+
 function createTransporter() {
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    host:   process.env.SMTP_HOST,
+    port:   parseInt(process.env.SMTP_PORT || '587', 10),
     secure: false,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
 }
 
-async function supabaseGet(path) {
-  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
-    headers: {
-      'apikey':        process.env.SUPABASE_SERVICE_KEY,
-      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-    },
-  });
-  const text = await res.text();
-  return { ok: res.ok, status: res.status, data: text ? JSON.parse(text) : null };
-}
-
-async function supabasePatch(path, body) {
-  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type':  'application/json',
-      'apikey':        process.env.SUPABASE_SERVICE_KEY,
-      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-      'Prefer':        'return=minimal',
-    },
-    body: JSON.stringify(body),
-  });
-  return { ok: res.ok, status: res.status };
-}
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 exports.handler = async function (event) {
 
@@ -108,35 +125,82 @@ exports.handler = async function (event) {
     return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
 
-  // ── GET requests ────────────────────────────────────────────────────────────
+  // ── GET requests ─────────────────────────────────────────────────────────────
   if (event.httpMethod === 'GET') {
     const action   = event.queryStringParameters?.action;
     const clientId = event.queryStringParameters?.clientId?.trim();
 
-    // Get pending clients — awaiting Barbara's review
+    // ── get_pending ───────────────────────────────────────────────────────────
+    // Uses client_pipeline view: current_stage = 'dna_uploaded' means DNA is in
+    // but formula.approved status_event has not fired yet.
     if (action === 'get_pending') {
-      const slaRes = await supabaseGet(
-        '/order_sla?dna_results_received_at=not.is.null&barbara_reviewed_at=is.null&order=dna_results_received_at.asc&limit=50'
+      const pendingRes = await supabaseGet(
+        '/client_pipeline?current_stage=eq.dna_uploaded&select=order_id,order_ref,client_contact_id,paid_at'
       );
-      if (!slaRes.ok) {
-        return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Could not fetch pending clients' }) };
+      if (!pendingRes.ok) {
+        console.error('barbara-engine get_pending:', pendingRes.status, JSON.stringify(pendingRes.data));
+        return {
+          statusCode: 500,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Could not fetch pending clients' }),
+        };
       }
+
+      // Enrich each row with client name from client_contacts
+      const rows    = pendingRes.data || [];
+      const pending = await Promise.all(rows.map(async (row) => {
+        if (!row.client_contact_id) {
+          return { clientId: row.order_ref, orderId: row.order_id, clientName: null, email: null, paidAt: row.paid_at };
+        }
+        const contactRes = await supabaseGet(
+          `/client_contacts?id=eq.${encodeURIComponent(row.client_contact_id)}&select=name,email&limit=1`
+        );
+        const contact = contactRes.data?.[0] || {};
+        return {
+          clientId:   row.order_ref,
+          orderId:    row.order_id,
+          clientName: contact.name || null,
+          email:      contact.email || null,
+          paidAt:     row.paid_at,
+        };
+      }));
+
       return {
         statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({ pending: slaRes.data }),
+        body: JSON.stringify({ pending }),
       };
     }
 
-    // Get full client data for Engine
+    // ── get_client ────────────────────────────────────────────────────────────
+    // Returns health profile payload + DNA results for one order_ref.
     if (action === 'get_client' && clientId) {
-      const [profileRes, dnaRes] = await Promise.all([
-        supabaseGet(`/health_profiles?client_id=eq.${encodeURIComponent(clientId)}&limit=1`),
-        supabaseGet(`/dna_results?client_id=eq.${encodeURIComponent(clientId)}&limit=1`),
+
+      // Look up order by order_ref
+      const orderRes = await supabaseGet(
+        `/orders?order_ref=eq.${encodeURIComponent(clientId)}&select=id,order_ref,client_contact_id&limit=1`
+      );
+      const order = orderRes.data?.[0];
+      if (!order) {
+        return {
+          statusCode: 404,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: `No order found for ${clientId}` }),
+        };
+      }
+
+      // Fetch health profile, DNA results, and contact details in parallel
+      const [profileRes, dnaRes, contactRes] = await Promise.all([
+        supabaseGet(`/health_profiles?order_id=eq.${encodeURIComponent(order.id)}&limit=1`),
+        supabaseGet(`/dna_results?order_id=eq.${encodeURIComponent(order.id)}&limit=1`),
+        order.client_contact_id
+          ? supabaseGet(`/client_contacts?id=eq.${encodeURIComponent(order.client_contact_id)}&limit=1`)
+          : Promise.resolve({ data: [] }),
       ]);
 
       const profile = profileRes.data?.[0] || null;
-      const dna     = dnaRes.data?.[0] || null;
+      const dna     = dnaRes.data?.[0]     || null;
+      const contact = contactRes.data?.[0]  || null;
 
       if (!profile) {
         return {
@@ -151,22 +215,28 @@ exports.handler = async function (event) {
       return {
         statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({ clientId, profile, dna }),
+        body: JSON.stringify({
+          clientId,
+          orderId: order.id,
+          profile,   // payload (Engine JSON) + raw_wizard_record
+          dna,
+          contact,   // name/email/address — safe for Barbara to see
+        }),
       };
     }
 
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid action' }) };
   }
 
-  // ── POST — sign off ─────────────────────────────────────────────────────────
+  // ── POST — sign off ──────────────────────────────────────────────────────────
   if (event.httpMethod === 'POST') {
-    let action, clientId, supplementList, notes, clientSla;
+    let action, clientId, supplementList, notes;
     try {
       const body   = JSON.parse(event.body);
-      action       = body.action;
-      clientId     = body.clientId?.trim();
+      action         = body.action;
+      clientId       = body.clientId?.trim();
       supplementList = body.supplementList || {};
-      notes        = body.notes || '';
+      notes          = body.notes || '';
     } catch {
       return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON' }) };
     }
@@ -177,46 +247,34 @@ exports.handler = async function (event) {
 
     const now = new Date().toISOString();
 
-    // 1. Get SLA row for client contact details
-    const slaRes = await supabaseGet(`/order_sla?client_id=eq.${encodeURIComponent(clientId)}&limit=1`);
-    clientSla    = slaRes.data?.[0];
+    // 1. Look up order by order_ref to get the UUID
+    const orderRes = await supabaseGet(
+      `/orders?order_ref=eq.${encodeURIComponent(clientId)}&select=id,client_contact_id&limit=1`
+    );
+    const order = orderRes.data?.[0];
+    if (!order) {
+      return {
+        statusCode: 404,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: `Order not found: ${clientId}` }),
+      };
+    }
 
-    // 2. Update Supabase — mark Barbara reviewed + supplement list sent
-    await Promise.all([
-      supabasePatch(
-        `/health_profiles?client_id=eq.${encodeURIComponent(clientId)}`,
-        { barbara_reviewed: true }
-      ),
-      supabasePatch(
-        `/dna_results?client_id=eq.${encodeURIComponent(clientId)}`,
-        {
-          barbara_reviewed:     true,
-          barbara_reviewed_at:  now,
-          barbara_notes:        notes,
-          supplement_list_sent: true,
-          supplement_list_sent_at: now,
-        }
-      ),
-      supabasePatch(
-        `/order_sla?client_id=eq.${encodeURIComponent(clientId)}`,
-        {
-          barbara_reviewed_at:    now,
-          supplement_list_sent_at: now,
-        }
-      ),
-    ]);
+    // 2. Insert formula.approved status_event (ops-safe ping — no clinical content)
+    const eventRes = await supabasePost('/status_events', {
+      order_id:    order.id,
+      step_key:    'formula.approved',
+      actor_role:  'naturopath',
+      occurred_at: now,
+    });
+    if (!eventRes.ok) {
+      console.error('barbara-engine: status_events insert failed —', eventRes.status, JSON.stringify(eventRes.data));
+      // Non-fatal — continue so TSI email still goes out
+    }
 
     console.log(`GeneThrive barbara-engine: Sign-off complete for ${clientId}`);
 
-    // 3. Advance SLA stages — barbara_review then compounding (non-fatal)
-    try {
-      await advanceStage(clientId, 'barbara_review');
-      await advanceStage(clientId, 'compounding');
-    } catch (err) {
-      console.error('GeneThrive barbara-engine: advanceStage failed (non-fatal) —', err.message);
-    }
-
-    // 4. Release Barbara's payment ($65) via Stripe
+    // 3. Release Barbara's payment ($65) via Stripe
     if (process.env.STRIPE_ACCOUNT_NATUROPATH && process.env.STRIPE_SECRET_KEY) {
       try {
         const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -225,7 +283,7 @@ exports.handler = async function (event) {
           currency:    'aud',
           destination: process.env.STRIPE_ACCOUNT_NATUROPATH,
           description: `GeneThrive ${clientId} — naturopath review fee`,
-          metadata:    { clientId, stage: 'barbara-review' },
+          metadata:    { clientId, orderId: order.id, stage: 'barbara-review' },
         });
         console.log(`GeneThrive: Barbara $65 transferred — ${transfer.id}`);
       } catch (err) {
@@ -233,29 +291,29 @@ exports.handler = async function (event) {
       }
     }
 
-    // 5. Tag Shopify order
+    // 4. Tag Shopify order
     try {
-      const orderRes  = await shopifyFetch(
-        `/admin/api/2024-01/orders.json?tag=client-id:${encodeURIComponent(clientId)}&status=any&limit=1`
+      const shopifySearchRes = await shopifyFetch(
+        `/admin/api/2024-01/orders.json?tag=order-ref:${encodeURIComponent(clientId)}&status=any&limit=1`
       );
-      const orderData = await orderRes.json();
-      const order     = orderData.orders?.[0];
-      if (order) {
-        const tags = (order.tags || '').split(', ').filter(Boolean).concat(['barbara-reviewed', 'cil-completed']);
-        await shopifyFetch(`/admin/api/2024-01/orders/${order.id}.json`, {
+      const shopifySearchData = await shopifySearchRes.json();
+      const shopifyOrder      = shopifySearchData.orders?.[0];
+      if (shopifyOrder) {
+        const tags = (shopifyOrder.tags || '').split(', ').filter(Boolean);
+        tags.push('barbara-reviewed', 'formula-approved');
+        await shopifyFetch(`/admin/api/2024-01/orders/${shopifyOrder.id}.json`, {
           method: 'PUT',
-          body:   JSON.stringify({ order: { id: order.id, tags: [...new Set(tags)].join(', ') } }),
+          body:   JSON.stringify({ order: { id: shopifyOrder.id, tags: [...new Set(tags)].join(', ') } }),
         });
       }
     } catch (err) {
-      console.warn('GeneThrive: Shopify tag update failed —', err.message);
+      console.warn('GeneThrive: Shopify tag update failed (non-fatal) —', err.message);
     }
 
-    // 6. Email supplement list to TSI
+    // 5. Email supplement list to TSI + status-only to ops
     const orderDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
 
-    // Format supplement list for email
-    const supplementHtml = Object.entries(supplementList).length > 0
+    const supplementHtml = supplementList.items?.length > 0
       ? `<table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
             <tr style="background:#f7f4ee">
@@ -266,13 +324,13 @@ exports.handler = async function (event) {
             </tr>
           </thead>
           <tbody>
-            ${supplementList.items?.map(item => `
+            ${supplementList.items.map(item => `
               <tr style="border-bottom:1px solid #ede8df">
                 <td style="padding:8px 12px;font-weight:500">${item.name || '—'}</td>
                 <td style="padding:8px 12px">${item.dose || '—'}</td>
                 <td style="padding:8px 12px">${item.frequency || '—'}</td>
                 <td style="padding:8px 12px;color:#7a7a74">${item.notes || ''}</td>
-              </tr>`).join('') || '<tr><td colspan="4" style="padding:12px;color:#7a7a74">See attached notes</td></tr>'}
+              </tr>`).join('')}
           </tbody>
         </table>`
       : '<p style="color:#7a7a74;font-size:13px">See Barbara\'s notes below for formula details.</p>';
@@ -281,7 +339,7 @@ exports.handler = async function (event) {
       const transporter = createTransporter();
       await Promise.all([
 
-        // TSI — supplement list (compounding script)
+        // TSI — compounding script
         transporter.sendMail({
           from:    process.env.EMAIL_FROM,
           to:      process.env.EMAIL_TSI,
@@ -299,7 +357,7 @@ exports.handler = async function (event) {
                   <br><small style="color:#92400e">The 72h clock starts when you confirm receipt in your portal.</small>
                 </div>
                 <div style="background:#f7f4ee;border-radius:8px;padding:14px;margin-bottom:20px">
-                  <div style="font-size:10px;color:#b45309;font-weight:600;letter-spacing:1px;margin-bottom:4px">CLIENT ID</div>
+                  <div style="font-size:10px;color:#b45309;font-weight:600;letter-spacing:1px;margin-bottom:4px">CLIENT REF</div>
                   <div style="font-size:20px;font-weight:700">${clientId}</div>
                   <div style="font-size:12px;color:#7a7a74;margin-top:4px">${orderDate}</div>
                 </div>
@@ -328,7 +386,7 @@ exports.handler = async function (event) {
           `,
         }),
 
-        // Ops — status only
+        // Ops — status only, no clinical content
         transporter.sendMail({
           from:    process.env.EMAIL_FROM,
           to:      process.env.EMAIL_OPS,
