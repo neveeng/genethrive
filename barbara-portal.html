@@ -337,9 +337,10 @@
       }
 
       list.innerHTML = data.pending.map(row => `
-        <div class="gt-client-item" onclick="loadClient('${row.client_id}')">
-          <div class="gt-client-id">${row.client_id}</div>
-          <div class="gt-client-date">Results in: ${new Date(row.dna_results_received_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' })}</div>
+        <div class="gt-client-item" onclick="loadClient('${row.clientId}')">
+          <div class="gt-client-id">${row.clientId}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">${row.clientName || ''}</div>
+          <div class="gt-client-date">Paid: ${new Date(row.paidAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' })}</div>
           <span class="gt-client-badge pending">Awaiting review</span>
         </div>
       `).join('');
