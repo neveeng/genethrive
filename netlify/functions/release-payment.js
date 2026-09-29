@@ -38,7 +38,7 @@
 
 import Stripe from 'stripe';
 import { createTransport } from 'nodemailer';
-import { shopifyFetch } from './shopify-token';
+import { shopifyFetch } from './_lib/shopify-token';
 
 // ── Milestone config ──────────────────────────────────────────────────────────
 

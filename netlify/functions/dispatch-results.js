@@ -51,7 +51,7 @@
  */
 
 import { createTransport } from 'nodemailer';
-import { shopifyFetch } from './shopify-token';
+import { shopifyFetch } from './_lib/shopify-token';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 // ── PDF helpers (shared style with process-order.js) ─────────────────────────

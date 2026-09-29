@@ -18,7 +18,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { shopifyFetch } from './shopify-token';
+import { shopifyFetch } from './_lib/shopify-token';
 
 export async function handler (event) {
 
