@@ -22,7 +22,7 @@
 // Original file by Paul's Claude/Cowork — adapted column/table names only.
 // SLA logic is unchanged from sla-logic.js.
 
-const { statusFor } = require('./sla-logic');
+import { statusFor } from './sla-logic';
 
 // ── Table and column mapping ─────────────────────────────────────────────────
 // Edit ONLY this block if your schema changes — everything below stays the same.
@@ -43,7 +43,7 @@ async function supabaseRequest(path, options) {
   const res = await fetch(url, {
     ...options,
     headers: {
-      apikey:          process.env.SUPABASE_SERVICE_KEY,  // was: SUPABASE_SERVICE_ROLE_KEY
+      apikey:          process.env.SUPABASE_SERVICE_KEY,
       Authorization:  `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
       'Content-Type':  'application/json',
       Prefer:          'return=representation',
@@ -118,7 +118,7 @@ async function run() {
 }
 
 // ── Netlify scheduled function entry point ───────────────────────────────────
-exports.handler = async () => {
+export async function handler() {
   try {
     const result = await run();
     console.log(`[check-sla-breaches] checked ${result.checked} rows, updated ${result.updated}`);
@@ -127,7 +127,7 @@ exports.handler = async () => {
     console.error('[check-sla-breaches] error:', err.message);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-};
+}
 
 // Allow `node check-sla-breaches.js` for a manual/local run
 if (require.main === module) {

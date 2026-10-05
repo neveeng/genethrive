@@ -1,641 +1,1380 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GeneThrive — Barbara's Engine</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --cream: #F7F4EE; --warm: #EDE8DF;
-      --sage: #4A6741; --sage-lt: #6B8F62; --sage-pale: #E8EEE7; --sage-mid: #3A5332;
-      --ink: #1C1C1A; --ink-mid: #4A4A46; --ink-soft: #7A7A74;
-      --border: #D6CFC3; --radius: 10px; --shadow: 0 2px 16px rgba(28,28,26,0.07);
-      --green: #166534; --green-bg: #F0FDF4; --green-bdr: #BBF7D0;
-      --red: #B91C1C; --red-bg: #FEF2F2; --red-bdr: #FECACA;
-      --blue: #1d4ed8; --blue-bg: #EFF6FF; --blue-bdr: #BFDBFE;
-      --amber: #92400E; --amber-bg: #FFF7ED; --amber-bdr: #FED7AA;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GeneThrive — Barbara's Portal (Prototype)</title>
+<style>
+  :root {
+    --navy: #0f2238;
+    --navy2: #1a3a5c;
+    --green: #22543d;
+    --greenbg: #f0fff4;
+    --greenborder: #38a169;
+    --amber: #92400e;
+    --amberbg: #fffbeb;
+    --amberborder: #d69e2e;
+    --grey: #5b6b7d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef2f6;
+    color: #1a202c;
+  }
+  header.top {
+    background: var(--navy);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  header.top .brand { font-size: 20px; font-weight: 700; }
+  header.top .sub { font-size: 12px; color: #cdd9e5; }
+  .proto-banner {
+    background: var(--amberbg);
+    border-bottom: 2px solid var(--amberborder);
+    color: var(--amber);
+    font-size: 12.5px;
+    padding: 8px 20px;
+    line-height: 1.5;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 20px; }
 
-    /* ── Login ── */
-    #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-    #engine-screen { display: none; flex-direction: column; min-height: 100vh; }
+  /* ---- Login screen ---- */
+  #login-screen {
+    max-width: 360px;
+    margin: 60px auto;
+    background: #fff;
+    border-radius: 8px;
+    padding: 32px 36px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    text-align: center;
+  }
+  #login-screen .title { font-size: 22px; font-weight: 700; color: var(--navy); }
+  #login-screen .sub { font-size: 13px; font-weight: 600; color: var(--navy2); margin-top: 2px; }
+  #login-screen .hint { font-size: 12px; color: #555; margin: 8px 0 16px; }
+  #login-pin {
+    font-size: 18px; letter-spacing: 6px; text-align: center;
+    padding: 8px 10px; width: 170px; border: 1px solid #b8c8d8; border-radius: 4px;
+  }
+  #login-screen button {
+    margin-top: 16px; font-size: 13px; font-weight: 700; padding: 9px 26px;
+    background: var(--navy2); color: #fff; border: none; border-radius: 4px; cursor: pointer;
+  }
+  #login-error {
+    display: none; font-size: 12px; font-weight: 700; color: #c00; margin-top: 14px;
+  }
+  #login-screen .note {
+    font-size: 10px; color: #8a97a3; margin-top: 14px; line-height: 1.4;
+  }
 
-    .login-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; box-shadow: var(--shadow); }
-    .login-logo { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sage); margin-bottom: 8px; }
-    .login-title { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--ink); margin-bottom: 4px; }
-    .login-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 28px; line-height: 1.5; }
-    .login-field { margin-bottom: 16px; }
-    .login-field label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-mid); margin-bottom: 6px; }
-    .login-field input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); background: var(--cream); outline: none; transition: border-color 0.2s; }
-    .login-field input:focus { border-color: var(--sage); background: #fff; }
-    .login-btn { width: 100%; padding: 13px; background: var(--sage); color: #fff; border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
-    .login-btn:hover { background: var(--sage-lt); }
-    .login-error { font-size: 13px; color: var(--red); margin-top: 12px; display: none; }
-    .login-error.visible { display: block; }
-
-    /* ── Header ── */
-    .gt-header { background: var(--sage-mid); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; }
-    .gt-brand { color: #fff; font-size: 14px; font-weight: 500; letter-spacing: 0.12em; }
-    .gt-badge { font-size: 11px; background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.75); padding: 3px 12px; border-radius: 20px; margin-left: 12px; }
-    .gt-logout { background: none; border: none; color: rgba(255,255,255,0.4); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; }
-    .gt-logout:hover { color: #fff; }
-
-    /* ── Layout ── */
-    .gt-layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 48px); }
-    @media (max-width: 900px) { .gt-layout { grid-template-columns: 1fr; } }
-
-    /* ── Sidebar ── */
-    .gt-sidebar { background: #fff; border-right: 1px solid var(--border); padding: 24px; overflow-y: auto; }
-    .gt-sidebar-title { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 16px; }
-
-    .gt-client-item { padding: 12px 14px; border-radius: var(--radius); margin-bottom: 8px; cursor: pointer; border: 1.5px solid transparent; transition: all 0.15s; }
-    .gt-client-item:hover { background: var(--sage-pale); border-color: var(--sage); }
-    .gt-client-item.active { background: var(--sage-pale); border-color: var(--sage); }
-    .gt-client-item.reviewed { opacity: 0.5; }
-    .gt-client-id { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 3px; }
-    .gt-client-date { font-size: 11px; color: var(--ink-soft); }
-    .gt-client-badge { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 20px; margin-top: 5px; display: inline-block; }
-    .gt-client-badge.pending { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bdr); }
-    .gt-client-badge.done { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
-
-    .gt-sidebar-empty { font-size: 13px; color: var(--ink-soft); padding: 8px 0; line-height: 1.6; }
-
-    /* ── Main Engine area ── */
-    .gt-engine { padding: 28px 32px; overflow-y: auto; }
-    @media (max-width: 900px) { .gt-engine { padding: 20px 16px; } }
-
-    .gt-engine-placeholder { display: flex; align-items: center; justify-content: center; height: 60vh; color: var(--ink-soft); font-size: 14px; text-align: center; }
-
-    /* ── Section ── */
-    .gt-section { margin-bottom: 28px; }
-    .gt-section-title { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sage); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--warm); }
-
-    /* ── Profile grid ── */
-    .gt-profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 600px) { .gt-profile-grid { grid-template-columns: 1fr; } }
-
-    .gt-profile-item { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
-    .gt-profile-label { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 5px; }
-    .gt-profile-value { font-size: 14px; color: var(--ink); line-height: 1.5; }
-    .gt-profile-value.flag { color: var(--red); font-weight: 500; }
-
-    /* ── DNA results ── */
-    .gt-dna-box { background: #fff; border: 1px solid var(--blue-bdr); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; }
-    .gt-dna-pending { background: var(--amber-bg); border: 1px solid var(--amber-bdr); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; color: var(--amber); }
-
-    /* ── Layer 1+2 Engine ── */
-    .gt-layer { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
-    .gt-layer-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .gt-layer-num { width: 28px; height: 28px; background: var(--sage); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; flex-shrink: 0; }
-    .gt-layer-title { font-size: 14px; font-weight: 500; color: var(--ink); }
-    .gt-layer-desc { font-size: 12px; color: var(--ink-soft); }
-
-    /* Supplement table */
-    .gt-supplement-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .gt-supplement-table th { background: var(--sage-pale); color: var(--sage); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 12px; text-align: left; }
-    .gt-supplement-table td { padding: 8px 12px; border-bottom: 1px solid var(--warm); color: var(--ink-mid); vertical-align: top; }
-    .gt-supplement-table td input, .gt-supplement-table td select, .gt-supplement-table td textarea {
-      width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
-      font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink); background: var(--cream);
-      outline: none;
-    }
-    .gt-supplement-table td input:focus, .gt-supplement-table td select:focus, .gt-supplement-table td textarea:focus {
-      border-color: var(--sage); background: #fff;
-    }
-    .gt-add-row { font-size: 12px; color: var(--sage); cursor: pointer; padding: 8px 12px; display: inline-flex; align-items: center; gap: 4px; }
-    .gt-add-row:hover { text-decoration: underline; }
-    .gt-del-row { color: var(--red); cursor: pointer; font-size: 12px; padding: 4px; }
-
-    /* Notes */
-    .gt-notes { width: 100%; min-height: 100px; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--ink); background: var(--cream); outline: none; resize: vertical; transition: border-color 0.2s; }
-    .gt-notes:focus { border-color: var(--sage); background: #fff; }
-
-    /* Sign-off */
-    .gt-signoff { background: var(--sage-mid); border-radius: 12px; padding: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-    .gt-signoff-text { color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.5; }
-    .gt-signoff-text strong { color: #fff; display: block; font-size: 15px; margin-bottom: 4px; }
-    .gt-signoff-btn { padding: 13px 28px; background: #fff; color: var(--sage-mid); border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; }
-    .gt-signoff-btn:hover:not(:disabled) { background: var(--sage-pale); }
-    .gt-signoff-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .gt-signoff-btn.loading::after { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(74,103,65,0.3); border-top-color: var(--sage); border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 8px; vertical-align: middle; }
-
-    /* Alerts */
-    .gt-alert { display: none; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin-bottom: 16px; }
-    .gt-alert.visible { display: block; }
-    .gt-alert.success { background: var(--green-bg); border: 1px solid var(--green-bdr); color: var(--green); }
-    .gt-alert.error { background: var(--red-bg); border: 1px solid var(--red-bdr); color: var(--red); }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  /* ---- Dashboard ---- */
+  #dashboard { display: none; }
+  #session-banner {
+    background: #11324f; color: #dce8f5; font-size: 12px; font-weight: 600;
+    padding: 6px 14px; text-align: center;
+  }
+  .client-card {
+    background: #fff; border: 1px solid #d7dee6; border-radius: 8px;
+    padding: 16px 18px; margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .client-card .id-block .name { font-size: 16px; font-weight: 700; color: var(--navy); }
+  .client-card .id-block .code { font-size: 12px; color: var(--grey); }
+  .status-pills { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .pill {
+    font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid transparent;
+  }
+  .pill.ready { background: var(--greenbg); color: var(--green); border-color: var(--greenborder); }
+  .pill.pending { background: #f7f7f8; color: #6b7280; border-color: #d1d5db; }
+  .btn-open {
+    background: var(--greenborder); color: #fff; border: none; border-radius: 5px;
+    padding: 10px 18px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  }
+  .btn-open:hover { opacity: 0.9; }
+  .btn-open:disabled { background: #cbd5e0; cursor: not-allowed; }
+  .waiting-note { font-size: 12px; color: var(--grey); font-style: italic; }
+  .fetch-note {
+    font-size: 11.5px; color: var(--grey); background: #fff; border: 1px dashed #c9d2db;
+    border-radius: 6px; padding: 8px 12px; margin-bottom: 16px;
+  }
+  #handoff-log {
+    font-size: 11.5px; color: var(--grey); background: #fff; border: 1px solid #d7dee6;
+    border-radius: 6px; padding: 10px 12px; margin-top: 18px; white-space: pre-wrap; display: none;
+  }
+</style>
 </head>
 <body>
 
-<!-- LOGIN -->
+<header class="top">
+  <div>
+    <div class="brand">GeneThrive</div>
+    <div class="sub">Practitioner Portal — prototype</div>
+  </div>
+  <div class="sub">Naturopath dashboard</div>
+</header>
+
+<div class="proto-banner">
+  <strong>Prototype note:</strong> this page is a stand-in for the real dashboard Neveen will build against
+  Supabase. Here, "ready" status and the client's two files come from a small local test server (or, if that
+  isn't running, from data baked into this page) — not from live Supabase records. The PIN check below runs
+  locally in this page, the same way it does inside the Engine itself; it is not server-side authentication.
+  See <code>README_BarbaraPortal.md</code> for exactly what changes when Neveen wires this to Supabase.
+</div>
+
 <div id="login-screen">
-  <div class="login-card">
-    <div class="login-logo">GeneThrive</div>
-    <div class="login-title">Barbara's Engine</div>
-    <div class="login-sub">
-      Access health profiles and DNA results, run Layer 1+2 analysis, and send compounding scripts to TSI.
-    </div>
-    <div class="login-error" id="login-error"></div>
-    <div class="login-field"><label>Email</label><input type="email" id="login-email" placeholder="Email address"></div>
-    <div class="login-field"><label>Password</label><input type="password" id="login-password"></div>
-    <button class="login-btn" onclick="login()">Open the Engine</button>
+  <div class="title">GeneThrive</div>
+  <div class="sub">Practitioner Portal</div>
+  <div class="hint">Enter your PIN to begin</div>
+  <input type="password" id="login-pin" maxlength="6" autocomplete="off"
+         onkeydown="if(event.key==='Enter'){portalLogin();}" />
+  <div><button type="button" id="login-btn" onclick="portalLogin()">Login</button></div>
+  <div id="login-error">Incorrect PIN. Access denied.</div>
+  <div class="note">
+    Same PIN concept as the Engine's own practitioner login (Barbara Baldwin). This check runs locally in this
+    file, hashed, not plaintext — it is a prototype stand-in, not server authentication.
   </div>
 </div>
 
-<!-- ENGINE -->
-<div id="engine-screen">
-  <div class="gt-header">
-    <div>
-      <span class="gt-brand">GENETHRIVE</span>
-      <span class="gt-badge">Barbara's Engine</span>
-    </div>
-    <button class="gt-logout" onclick="logout()">Sign out</button>
-  </div>
-
-  <div class="gt-layout">
-
-    <!-- Sidebar — pending clients -->
-    <div class="gt-sidebar">
-      <div class="gt-sidebar-title">Pending review</div>
-      <div id="pending-list"><div class="gt-sidebar-empty">Loading...</div></div>
-    </div>
-
-    <!-- Main engine -->
-    <div class="gt-engine">
-
-      <div id="engine-placeholder" class="gt-engine-placeholder">
-        <div>
-          <div style="font-size:40px;margin-bottom:12px">🧬</div>
-          <div style="font-weight:500;color:var(--ink);margin-bottom:6px">Select a client to begin</div>
-          <div>Choose a client from the sidebar to load their health profile and DNA results.</div>
-        </div>
-      </div>
-
-      <div id="engine-content" style="display:none">
-
-        <div class="gt-alert success" id="alert-success"></div>
-        <div class="gt-alert error"   id="alert-error"></div>
-
-        <!-- Client header -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
-          <div>
-            <div style="font-size:11px;color:var(--ink-soft);font-weight:500;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">Active client</div>
-            <div style="font-family:'DM Serif Display',serif;font-size:28px" id="engine-client-id">—</div>
-          </div>
-          <button onclick="refreshClient()" style="font-size:12px;color:var(--ink-soft);background:none;border:1px solid var(--border);border-radius:6px;padding:6px 14px;cursor:pointer;font-family:'DM Sans',sans-serif">↻ Refresh</button>
-        </div>
-
-        <!-- Health profile -->
-        <div class="gt-section">
-          <div class="gt-section-title">Health profile</div>
-          <div class="gt-profile-grid" id="profile-grid">
-            <!-- rendered by JS -->
-          </div>
-        </div>
-
-        <!-- DNA results -->
-        <div class="gt-section">
-          <div class="gt-section-title">DNA results</div>
-          <div id="dna-section">
-            <div class="gt-dna-pending">DNA results not yet received for this client.</div>
-          </div>
-        </div>
-
-        <!-- Layer 1 — Evidence mapping -->
-        <div class="gt-section">
-          <div class="gt-section-title">Layer 1+2 — Formula engine</div>
-
-          <div class="gt-layer">
-            <div class="gt-layer-header">
-              <div class="gt-layer-num">1</div>
-              <div>
-                <div class="gt-layer-title">Evidence mapping</div>
-                <div class="gt-layer-desc">Map DNA variants + health profile to evidence base. Tick items that apply.</div>
-              </div>
-            </div>
-            <div id="layer1-items">
-              <!-- Rendered dynamically based on profile -->
-            </div>
-          </div>
-
-          <div class="gt-layer">
-            <div class="gt-layer-header">
-              <div class="gt-layer-num">2</div>
-              <div>
-                <div class="gt-layer-title">Personalised supplement list</div>
-                <div class="gt-layer-desc">Build the compounding formula from your analysis. This will be sent to TSI.</div>
-              </div>
-            </div>
-
-            <table class="gt-supplement-table">
-              <thead>
-                <tr>
-                  <th>Supplement</th>
-                  <th>Dose</th>
-                  <th>Frequency</th>
-                  <th>Notes</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="supplement-rows">
-                <!-- rows added by JS -->
-              </tbody>
-            </table>
-            <div class="gt-add-row" onclick="addSupplementRow()">
-              + Add supplement
-            </div>
-          </div>
-        </div>
-
-        <!-- Clinical notes -->
-        <div class="gt-section">
-          <div class="gt-section-title">Clinical notes</div>
-          <textarea class="gt-notes" id="clinical-notes" placeholder="Record your clinical observations, reasoning, and any instructions for TSI or the client's next appointment..."></textarea>
-        </div>
-
-        <!-- Sign-off -->
-        <div class="gt-signoff">
-          <div class="gt-signoff-text">
-            <strong>Ready to sign off?</strong>
-            This will send the compounding script to TSI, release your payment, and notify Paul's dashboard.
-          </div>
-          <button class="gt-signoff-btn" id="signoff-btn" onclick="signOff()">
-            Sign off &amp; send to TSI
-          </button>
-        </div>
-
-      </div><!-- #engine-content -->
-    </div><!-- .gt-engine -->
-  </div><!-- .gt-layout -->
+<div id="dashboard">
+  <div id="session-banner"></div>
+  <main>
+    <h2 style="color:var(--navy); margin-top:0;">Clients</h2>
+    <div class="fetch-note" id="source-note">Loading client list…</div>
+    <div id="client-list"></div>
+    <div id="handoff-log"></div>
+  </main>
 </div>
 
 <script>
-  const NETLIFY_URL = 'https://genethrive.netlify.app';
-  let _token = null;
-  let _currentClientId = null;
-  let _clientData = null;
+/* =====================================================================
+   GeneThrive — Barbara's Portal (PROTOTYPE)
+   ---------------------------------------------------------------------
+   Stands in for the real Supabase-backed dashboard. Talks to a local
+   Node test server (see local-test-server/server.js) when one is
+   running; falls back to data baked into this file when it isn't (e.g.
+   opened straight from disk via file://) so the demo still works with
+   nothing running.
 
-  // ── Auth ─────────────────────────────────────────────────────────────────
-  async function login() {
-    const email = document.getElementById('login-email').value.trim();
-    const pw    = document.getElementById('login-password').value;
-    const err   = document.getElementById('login-error');
-    err.classList.remove('visible');
-    try {
-      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/partner-auth`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      if (data.partner !== 'naturopath') throw new Error('Invalid credentials for this portal');
-      _token = data.token;
-      sessionStorage.setItem('barbara_token', _token);
-      showEngine();
-      loadPending();
-    } catch (e) { err.textContent = e.message; err.classList.add('visible'); }
+   HANDOFF MECHANISM TO THE ENGINE — chosen deliberately, see README:
+   a one-time localStorage key, not window.postMessage. Reason: this is
+   a static-file prototype that may be opened either via file:// or via
+   a bare local http server, and there is no reliable moment at which
+   the newly-opened Engine tab is guaranteed ready to RECEIVE a
+   postMessage (no ack channel exists yet, and file:// pages frequently
+   report a null/opaque origin, which breaks strict origin checks on
+   both ends). A localStorage key that the Engine reads once for itself
+   on load, keyed by a URL flag, needs no handshake and no origin
+   assumption beyond "same origin" — true for both this file:// folder
+   and the local server. The key is short-lived (5 minutes) and is
+   deleted the instant either side reads it, so it behaves like a
+   real one-time token even though nothing enforces that server-side
+   in this prototype.
+   ===================================================================== */
+
+const API_BASE = "";                 // same-origin Netlify Functions (list-clients, get-client-full-record), when deployed/running locally
+// [29 Sep 2026] Was "GeneThrive_Engine_v3.5.147_WITH_PortalHandoff.html" — a
+// separate, older Engine copy that never received Barbara's later dose
+// corrections or the Accept/Reject persistence wiring. The Portal Handoff
+// patch (ENGINE_PATCH_PortalHandoff.md) is now merged into the one current,
+// canonical Engine file instead, so there is only ever one Engine file to
+// keep up to date, not two forks that can silently drift apart.
+const ENGINE_FILE = "GeneThrive_Engine_v3.5.147_PATCHED_27Sep2026_DOILinks.html"; // must sit next to this file
+const PORTAL_PIN_HASH = "936f6af81f1f8fd9318cfde987bcf123ec996fcae1c7bd1cb09416eb52eb1ee8"; // sha256("8100") — Barbara
+const HANDOFF_KEY = "gt_portal_handoff";
+
+// ---- Fallback demo data (used only if the local test server isn't running) --
+// Real content for Jacqueline Courtney (GT-2026-0002): the actual sample DNA
+// extract and intake JSON shipped with this prototype. Richard Goodrick
+// (GT-2026-0001) is shown with DNA ready but Health Profile still pending,
+// which is the realistic "not ready yet" case the real dashboard must also
+// handle — his "Open in Engine" button stays disabled either way.
+const FALLBACK_CLIENTS = [
+  {
+    clientId: "GT-2026-0002",
+    name: "Jacqueline Courtney",
+    dnaReady: true,
+    healthProfileReady: true
+  },
+  {
+    clientId: "GT-2026-0001",
+    name: "Richard Goodrick",
+    dnaReady: true,
+    healthProfileReady: false
   }
+];
+const FALLBACK_DNA = {
+  "schema": "genethrive.dna.v1",
+  "clientId": "4036377",
+  "name": "Jacqueline Courtney",
+  "dob": "1970-12-14",
+  "barcode": "PN347T33",
+  "reportDate": "11/01/24",
+  "lab": "myDNA",
+  "sourcePdf": "SCREENI4036377JACQUELINECOURTNEY1_Chart.pdf",
+  "variants": [
+    {
+      "rsid": "rs6314",
+      "geneLabel": "5-HT2A",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs6311",
+      "geneLabel": "5-HT2A",
+      "genotype": "TT",
+      "zygosity": "homozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs6313",
+      "geneLabel": "5-HT2A",
+      "genotype": "AA",
+      "zygosity": "homozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs4977574",
+      "geneLabel": "9p21",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs2231142",
+      "geneLabel": "ABCG2 (Q141K)",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs3741049",
+      "geneLabel": "ACAT1-02",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs4343",
+      "geneLabel": "ACE1 G2350A",
+      "genotype": "AA",
+      "zygosity": "homozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs2106809",
+      "geneLabel": "ACE2 A8790G",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs9997745",
+      "geneLabel": "ACSL1",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs1815739",
+      "geneLabel": "ACTN3",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs4961",
+      "geneLabel": "ADD1",
+      "genotype": "GT",
+      "zygosity": "heterozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs2241766",
+      "geneLabel": "ADIPOQ",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs1042713",
+      "geneLabel": "ADRB2",
+      "genotype": "AA",
+      "zygosity": "homozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs1042714",
+      "geneLabel": "ADRB2",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs5186",
+      "geneLabel": "AGTR1",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs671",
+      "geneLabel": "ALDH2",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs1800497",
+      "geneLabel": "ANKK1",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs10156191",
+      "geneLabel": "APB1",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs5082",
+      "geneLabel": "APOA2",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs429358",
+      "geneLabel": "APOE",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs7412",
+      "geneLabel": "APOE",
+      "genotype": "CC",
+      "zygosity": "homozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs10490924",
+      "geneLabel": "ARMS2",
+      "genotype": "GT",
+      "zygosity": "heterozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs1801516",
+      "geneLabel": "ATM D1853N",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs7501331",
+      "geneLabel": "BCMO1 A379V",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs12934922",
+      "geneLabel": "BCMO1 R267S",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs6265",
+      "geneLabel": "BDNF",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs3733890",
+      "geneLabel": "BHMT",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs1001179",
+      "geneLabel": "CAT C-262T",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 2
+    },
+    {
+      "rsid": "rs234709",
+      "geneLabel": "CBS",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs4920037",
+      "geneLabel": "CBS 191150T",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs2851391",
+      "geneLabel": "CBS A13637G",
+      "genotype": "TT",
+      "zygosity": "homozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1061170",
+      "geneLabel": "CFH",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1800012",
+      "geneLabel": "COL1A1",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs4680",
+      "geneLabel": "COMT",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs4633",
+      "geneLabel": "COMT",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs4693596",
+      "geneLabel": "COQ2",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1021737",
+      "geneLabel": "CTH",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs743572",
+      "geneLabel": "CYP17A2",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1048943",
+      "geneLabel": "CYP1A1",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs762551",
+      "geneLabel": "CYP1A2",
+      "genotype": "AA",
+      "zygosity": "homozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1056836",
+      "geneLabel": "CYP1B1*6 L432V",
+      "genotype": "CG",
+      "zygosity": "heterozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs4646536",
+      "geneLabel": "CYP27B1",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs12248560",
+      "geneLabel": "CYP2C19*17",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1057910",
+      "geneLabel": "CYP2C9*3 A1075C",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1065852",
+      "geneLabel": "CYP2D6 T100C",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs2031920",
+      "geneLabel": "CYP2E1",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs10741657",
+      "geneLabel": "CYP2R1",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs2740574",
+      "geneLabel": "CYP3A4*1B",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1049793",
+      "geneLabel": "DAO C2029G",
+      "genotype": "CG",
+      "zygosity": "heterozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs12785878",
+      "geneLabel": "DHCR7",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1643659",
+      "geneLabel": "DHFR A20965G",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs1677693",
+      "geneLabel": "DHFR C19483A",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs2235544",
+      "geneLabel": "DI01",
+      "genotype": "AC",
+      "zygosity": "heterozygous",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs225014",
+      "geneLabel": "DI02",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs4986938",
+      "geneLabel": "ESR2",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs2987983",
+      "geneLabel": "ESR2",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 3
+    },
+    {
+      "rsid": "rs6025",
+      "geneLabel": "F5",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs324420",
+      "geneLabel": "FAAH",
+      "genotype": "AC",
+      "zygosity": "heterozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs174546",
+      "geneLabel": "FADS1",
+      "genotype": "TT",
+      "zygosity": "homozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1535",
+      "geneLabel": "FADS2",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs174575",
+      "geneLabel": "FADS2",
+      "genotype": "CG",
+      "zygosity": "heterozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs17817449",
+      "geneLabel": "FTO",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs9939609",
+      "geneLabel": "FTO",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs601338",
+      "geneLabel": "FUT2",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs3749034",
+      "geneLabel": "GAD1",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs2241165",
+      "geneLabel": "GAD1",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs769407",
+      "geneLabel": "GAD1",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs3791851",
+      "geneLabel": "GAD1",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs3791850",
+      "geneLabel": "GAD1",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs4143094",
+      "geneLabel": "GATA3",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs2282679",
+      "geneLabel": "GC",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1050450",
+      "geneLabel": "GPX1",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs366631",
+      "geneLabel": "GSTM1",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1138272",
+      "geneLabel": "GSTP1 C341T",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1695",
+      "geneLabel": "GSTP1 I105V",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1800562",
+      "geneLabel": "HFE-C282Y",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs2187668",
+      "geneLabel": "HLA DQ2.5",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs7454108",
+      "geneLabel": "HLA-DQ8",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1050891",
+      "geneLabel": "HNMT",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs11558538",
+      "geneLabel": "HNMT C314T",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1800871",
+      "geneLabel": "IL-10",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1800872",
+      "geneLabel": "IL-10",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1800896",
+      "geneLabel": "IL-10",
+      "genotype": "TT",
+      "zygosity": "homozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs1800795",
+      "geneLabel": "IL6",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs4988235",
+      "geneLabel": "LCT",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs3798220",
+      "geneLabel": "LPA",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs17713054",
+      "geneLabel": "LZTFL1",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs6323",
+      "geneLabel": "MAO-A",
+      "genotype": "GT",
+      "zygosity": "heterozygous",
+      "sourcePage": 4
+    },
+    {
+      "rsid": "rs2279744",
+      "geneLabel": "MDM2",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1800734",
+      "geneLabel": "MLH1",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs2236225",
+      "geneLabel": "MTHFD1 G1958A",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1801131",
+      "geneLabel": "MTHFR 1298",
+      "genotype": "TT",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1801133",
+      "geneLabel": "MTHFR 677",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs10830963",
+      "geneLabel": "MTNR1B",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1805087",
+      "geneLabel": "MTR A2756G",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1801394",
+      "geneLabel": "MTRR A66G",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1495741",
+      "geneLabel": "NAT2",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs4654748",
+      "geneLabel": "NBPF3",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs3782218",
+      "geneLabel": "NOS1",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs2248814",
+      "geneLabel": "NOS2",
+      "genotype": "AA",
+      "zygosity": "homozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1800566",
+      "geneLabel": "NQ01",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs7946",
+      "geneLabel": "PEMT",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs12325817",
+      "geneLabel": "PEMT",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs662",
+      "geneLabel": "PON1",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1800206",
+      "geneLabel": "PPAR-alpha",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs8192678",
+      "geneLabel": "PPARGC1A",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs2120019",
+      "geneLabel": "PPCDC",
+      "genotype": "CC",
+      "zygosity": "homozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs2769264",
+      "geneLabel": "SELENBP1",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1799941",
+      "geneLabel": "SHBG",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs12150660",
+      "geneLabel": "SHBG",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs7895833",
+      "geneLabel": "SIRT1",
+      "genotype": "GG",
+      "zygosity": "homozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs74174284",
+      "geneLabel": "SLC17A7",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs33972313",
+      "geneLabel": "SLC23A1",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs4880",
+      "geneLabel": "SOD2",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1799895",
+      "geneLabel": "SOD3",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs7903146",
+      "geneLabel": "TCF7L2",
+      "genotype": "CC",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1801198",
+      "geneLabel": "TCN2 C766G",
+      "genotype": "CG",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs7385804",
+      "geneLabel": "TFR2",
+      "genotype": "AA",
+      "zygosity": "wild_type",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs2070788",
+      "geneLabel": "TMPRSS2",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 5
+    },
+    {
+      "rsid": "rs1800629",
+      "geneLabel": "TNFA",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 6
+    },
+    {
+      "rsid": "rs1042522",
+      "geneLabel": "TP53",
+      "genotype": "CC",
+      "zygosity": "homozygous",
+      "sourcePage": 6
+    },
+    {
+      "rsid": "rs2228570",
+      "geneLabel": "VDR-FOK",
+      "genotype": "AG",
+      "zygosity": "heterozygous",
+      "sourcePage": 6
+    },
+    {
+      "rsid": "rs9923231",
+      "geneLabel": "VKORC1*2",
+      "genotype": "CT",
+      "zygosity": "heterozygous",
+      "sourcePage": 6
+    },
+    {
+      "rsid": "rs861539",
+      "geneLabel": "XRCC3",
+      "genotype": "GG",
+      "zygosity": "wild_type",
+      "sourcePage": 6
+    }
+  ]
+};
+const FALLBACK_INTAKE = {
+  "schema": "genethrive.intake.v1",
+  "name": "Jacqueline Courteny",
+  "dob": "1970-12-14",
+  "sex": "Female",
+  "weight_kg": 55,
+  "meds": {
+    "answer": "yes",
+    "items": [
+      "Levothyroxine (thyroid — other brand)",
+      "Iron tablets or iron infusion"
+    ],
+    "dosing": null
+  },
+  "cond": {
+    "answer": "yes",
+    "items": [
+      "Underactive thyroid or Hashimoto's"
+    ]
+  },
+  "shellfish": {
+    "answer": "no"
+  },
+  "blood": {
+    "answer": "no",
+    "items": []
+  },
+  "pregnancy": {
+    "answer": "no",
+    "items": []
+  },
+  "gastric_surgery": {
+    "answer": "no"
+  },
+  "sleep": {
+    "lies_awake": {
+      "answer": "no",
+      "freq": null
+    },
+    "wakes_night": {
+      "answer": "no",
+      "freq": null
+    },
+    "wakes_early": {
+      "answer": "no",
+      "freq": null
+    },
+    "restless_legs": {
+      "answer": "no",
+      "freq": null
+    },
+    "duration": null
+  },
+  "anxiety": {
+    "answer": "no"
+  },
+  "headaches": {
+    "answer": "no",
+    "freq": null
+  },
+  "palpitations": {
+    "answer": "no"
+  },
+  "nausea": {
+    "answer": "no"
+  },
+  "cognition": {
+    "answer": "no",
+    "freq": null
+  },
+  "energy": {
+    "answer": "no"
+  },
+  "exercise_freq": "3–4 times a week",
+  "alcohol_per_week": "None",
+  "smokes": {
+    "answer": "no"
+  },
+  "diet": [
+    "Meat and fish included"
+  ],
+  "oily_fish_freq": "rarely",
+  "other": {
+    "answer": "no",
+    "text": null
+  },
+  "completed_at": "2026-07-18T06:14:54.900Z"
+};
 
-  function logout() {
-    sessionStorage.removeItem('barbara_token'); _token = null;
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('engine-screen').style.display = 'none';
-  }
+let usingFallback = false;
+let _sessionToken = null;       // returned by authenticate-practitioner.js
+let _practitionerName = "Barbara Baldwin"; // populated from server response
 
-  function showEngine() {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('engine-screen').style.display = 'flex';
-  }
+// Build fetch options with the session token header (when available).
+// Falls through gracefully when REQUIRE_PRACTITIONER_TOKEN is not yet set on the server.
+function authHeaders() {
+  return _sessionToken ? { "X-Practitioner-Token": _sessionToken } : {};
+}
 
-  if (sessionStorage.getItem('barbara_token')) {
-    _token = sessionStorage.getItem('barbara_token');
-    showEngine();
-    loadPending();
-  }
+async function portalLogin() {
+  const inp = document.getElementById("login-pin");
+  const err = document.getElementById("login-error");
+  const btn = document.getElementById("login-btn");
+  const pin = inp ? inp.value.trim() : "";
+  if (!pin) return;
 
-  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  // Disable button to prevent double-clicks during the network round-trip
+  if (btn) btn.disabled = true;
 
-  // ── Load pending clients ─────────────────────────────────────────────────
-  async function loadPending() {
-    const list = document.getElementById('pending-list');
-    try {
-      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/barbara-engine?action=get_pending`, {
-        headers: { 'X-Partner-Token': _token },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+  try {
+    const res = await fetch(API_BASE + "/.netlify/functions/authenticate-practitioner", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin })
+    });
+    const data = await res.json();
 
-      if (!data.pending?.length) {
-        list.innerHTML = '<div class="gt-sidebar-empty">No clients awaiting review.</div>';
+    if (data.ok) {
+      _sessionToken = data.token || null;
+      if (data.practitionerId) {
+        // Use practitioner name from env-backed registry if returned; fall back to default
+        _practitionerName = data.name || _practitionerName;
+      }
+      err.style.display = "none";
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+      const d = new Date().toLocaleDateString("en-AU", { day: "2-digit", month: "long", year: "numeric" });
+      document.getElementById("session-banner").textContent =
+        "Session: " + _practitionerName + " — ATMS 24298   |   " + d;
+      loadClients();
+    } else {
+      // Server explicitly said no match — or PRACTITIONER_PIN_HASHES not yet configured:
+      // fall back to client-side check so the portal still works before the env var is set.
+      const serverUnconfigured = (res.status === 500 || !res.ok);
+      if (serverUnconfigured && typeof PORTAL_PIN_HASH !== "undefined") {
+        // Server-side auth not yet wired: fall through to legacy client-side check
+        const buf = new TextEncoder().encode(String(pin));
+        const digest = await crypto.subtle.digest("SHA-256", buf);
+        const hash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+        if (hash === PORTAL_PIN_HASH) {
+          _sessionToken = null; // no server token in fallback mode
+          err.style.display = "none";
+          document.getElementById("login-screen").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+          const d = new Date().toLocaleDateString("en-AU", { day: "2-digit", month: "long", year: "numeric" });
+          document.getElementById("session-banner").textContent =
+            "Session: " + _practitionerName + " — ATMS 24298   |   " + d + " ⚠ client-side auth only";
+          loadClients();
+          return;
+        }
+      }
+      err.style.display = "block";
+      if (inp) inp.value = "";
+    }
+  } catch (e) {
+    // Network error (e.g. local dev without the function running): fall through to client-side PIN
+    console.warn("authenticate-practitioner network error:", e.message, "— falling back to client-side PIN check");
+    if (typeof PORTAL_PIN_HASH !== "undefined") {
+      const buf = new TextEncoder().encode(String(pin));
+      const digest = await crypto.subtle.digest("SHA-256", buf);
+      const hash = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+      if (hash === PORTAL_PIN_HASH) {
+        _sessionToken = null;
+        err.style.display = "none";
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        const d = new Date().toLocaleDateString("en-AU", { day: "2-digit", month: "long", year: "numeric" });
+        document.getElementById("session-banner").textContent =
+          "Session: " + _practitionerName + " — ATMS 24298   |   " + d + " ⚠ offline mode";
+        loadClients();
         return;
       }
-
-      // FIX: response uses camelCase clientId / clientName / paidAt
-      list.innerHTML = data.pending.map(row => `
-        <div class="gt-client-item" onclick="loadClient('${row.clientId}')">
-          <div class="gt-client-id">${row.clientId}</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">${row.clientName || ''}</div>
-          <div class="gt-client-date">Paid: ${new Date(row.paidAt).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' })}</div>
-          <span class="gt-client-badge pending">Awaiting review</span>
-        </div>
-      `).join('');
-
-    } catch (err) {
-      list.innerHTML = `<div class="gt-sidebar-empty">Error loading: ${err.message}</div>`;
     }
+    err.style.display = "block";
+    if (inp) inp.value = "";
+  } finally {
+    if (btn) btn.disabled = false;
   }
+}
 
-  // ── Load client data ─────────────────────────────────────────────────────
-  async function loadClient(clientId) {
-    _currentClientId = clientId;
+async function loadClients() {
+  const note = document.getElementById("source-note");
+  let clients;
+  try {
+    const r = await fetch(API_BASE + "/.netlify/functions/list-clients", { headers: authHeaders() });
+    if (!r.ok) throw new Error("server responded " + r.status);
+    clients = await r.json();
+    usingFallback = false;
+    note.textContent = "Live from the unified GeneThrive backend (/.netlify/functions/list-clients) — " +
+      "the same clients table the Shopify intake pipeline reads and writes.";
+  } catch (e) {
+    clients = FALLBACK_CLIENTS;
+    usingFallback = true;
+    note.textContent = "Backend not reachable — showing data baked into this page instead. " +
+      "Run local-test-server/ (see README_BarbaraPortal.md) for the fuller (fetch-based) demo. Either way, " +
+      "clicking “Open in Engine” below performs the real handoff.";
+  }
+  renderClients(clients);
+}
 
-    // Highlight in sidebar
-    document.querySelectorAll('.gt-client-item').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.gt-client-item').forEach(el => {
-      if (el.querySelector('.gt-client-id')?.textContent === clientId) el.classList.add('active');
-    });
-
-    document.getElementById('engine-placeholder').style.display = 'none';
-    document.getElementById('engine-content').style.display     = 'block';
-    document.getElementById('engine-client-id').textContent     = clientId;
-
-    clearAlerts();
-
-    try {
-      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/barbara-engine?action=get_client&clientId=${encodeURIComponent(clientId)}`, {
-        headers: { 'X-Partner-Token': _token },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      _clientData = data;
-      renderProfile(data.profile);
-      renderDNA(data.dna);
-      renderLayer1(data.profile, data.dna);
-      resetSupplementTable();
-
-    } catch (err) {
-      showError('Could not load client data: ' + err.message);
+function renderClients(clients) {
+  const list = document.getElementById("client-list");
+  list.innerHTML = "";
+  clients.forEach(function (c) {
+    const ready = c.dnaReady && c.healthProfileReady;
+    const card = document.createElement("div");
+    card.className = "client-card";
+    card.innerHTML =
+      '<div class="id-block">' +
+        '<div class="name">' + escapeHtml(c.name) + '</div>' +
+        '<div class="code">' + escapeHtml(c.clientId) + '</div>' +
+        '<div class="status-pills">' +
+          '<span class="pill ' + (c.dnaReady ? "ready" : "pending") + '">DNA results ' + (c.dnaReady ? "ready" : "pending") + '</span>' +
+          '<span class="pill ' + (c.healthProfileReady ? "ready" : "pending") + '">Health Profile ' + (c.healthProfileReady ? "ready" : "pending") + '</span>' +
+        '</div>' +
+      '</div>';
+    const action = document.createElement("div");
+    if (ready) {
+      const btn = document.createElement("button");
+      btn.className = "btn-open";
+      btn.textContent = "Open in Engine";
+      btn.onclick = function () { openInEngine(c.clientId, c.name); };
+      action.appendChild(btn);
+    } else {
+      const span = document.createElement("span");
+      span.className = "waiting-note";
+      span.textContent = "Waiting on " + (!c.dnaReady && !c.healthProfileReady
+        ? "DNA results and Health Profile" : (!c.dnaReady ? "DNA results" : "Health Profile"));
+      action.appendChild(span);
     }
-  }
+    card.appendChild(action);
+    list.appendChild(card);
+  });
+}
 
-  async function refreshClient() { if (_currentClientId) loadClient(_currentClientId); }
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
 
-  // ── Render health profile ────────────────────────────────────────────────
-  // profile = health_profiles.payload (genethrive.intake.v1 schema)
-  function renderProfile(p) {
-    if (!p) { document.getElementById('profile-grid').innerHTML = '<div style="color:var(--ink-soft);font-size:13px">No profile found.</div>'; return; }
+function log(msg) {
+  const box = document.getElementById("handoff-log");
+  box.style.display = "block";
+  box.textContent += (box.textContent ? "\n" : "") + msg;
+}
 
-    function calcAge(dob) {
-      if (!dob) return null;
-      const d = new Date(dob), now = new Date();
-      let age = now.getFullYear() - d.getFullYear();
-      if (now < new Date(now.getFullYear(), d.getMonth(), d.getDate())) age--;
-      return age;
+async function openInEngine(clientId, name) {
+  log("Opening " + name + " (" + clientId + ") in the Engine…");
+  let dna, intake;
+  try {
+    if (!usingFallback) {
+      const fullRes = await fetch(API_BASE + "/.netlify/functions/get-client-full-record?clientId=" + encodeURIComponent(clientId), { headers: authHeaders() });
+      if (!fullRes.ok) throw new Error("client record not available from server (status " + fullRes.status + ")");
+      const full = await fullRes.json();
+      if (!full.dnaResults || !full.healthProfile) throw new Error("one or both records not available for this client");
+      dna = full.dnaResults;
+      intake = full.healthProfile;
+    } else {
+      // Fallback mode only ever offers this button for GT-2026-0002 (Jacqueline),
+      // since that is the only fallback client with real DNA + intake baked in.
+      dna = FALLBACK_DNA;
+      intake = FALLBACK_INTAKE;
     }
-
-    const yesNo = val => (val === 'yes' || val === true) ? 'Yes' : 'No';
-    const flag  = val => val === 'yes' || val === true;
-
-    const items = [
-      { label: 'Sex',                      value: p.sex || '—' },
-      { label: 'Age',                      value: p.dob ? `${calcAge(p.dob)} yrs (DOB ${p.dob})` : '—' },
-      { label: 'Pregnant / breastfeeding', value: yesNo(p.pregnancy?.answer), flagIf: flag(p.pregnancy?.answer) },
-      { label: 'Haematological condition', value: yesNo(p.blood?.answer),     flagIf: flag(p.blood?.answer) },
-      { label: 'Medical conditions',       value: p.cond?.answer === 'yes' ? (p.cond.items?.join(', ') || 'Yes — see detail') : 'None', flagIf: p.cond?.answer === 'yes' },
-      { label: 'Medications',              value: p.meds?.answer === 'yes' ? (p.meds.items?.join(', ') || 'Yes — see detail') : 'None', flagIf: p.meds?.answer === 'yes' },
-      { label: 'Shellfish allergy',        value: yesNo(p.shellfish?.answer), flagIf: flag(p.shellfish?.answer) },
-      { label: 'Diet',                     value: Array.isArray(p.diet) ? p.diet.join(', ') : (p.diet || '—') },
-      { label: 'Exercise',                 value: p.exercise_freq || p.additional?.lifestyle?.exerciseFreq || '—' },
-      { label: 'Alcohol / week',           value: p.alcohol_per_week || p.additional?.lifestyle?.alcoholPerWeek || '—' },
-      { label: 'Oily fish (serves/wk)',    value: p.oily_fish_freq || '—' },
-      { label: 'Smokes',                   value: p.smokes?.answer === 'yes' ? 'Yes' : 'No' },
-      { label: 'Urgent flags',             value: p.urgentFlags?.length ? p.urgentFlags.join(', ') : 'None', flagIf: p.urgentFlags?.length > 0 },
-    ];
-
-    document.getElementById('profile-grid').innerHTML = items.map(i => `
-      <div class="gt-profile-item">
-        <div class="gt-profile-label">${i.label}</div>
-        <div class="gt-profile-value ${i.flagIf ? 'flag' : ''}">${i.value}</div>
-      </div>
-    `).join('');
+  } catch (e) {
+    log("FAILED to fetch this client's records: " + e.message);
+    alert("Could not load this client's records: " + e.message);
+    return;
   }
 
-  // ── Render DNA results ───────────────────────────────────────────────────
-  function renderDNA(dna) {
-    const el = document.getElementById('dna-section');
-    if (!dna || !dna.result_data) {
-      el.innerHTML = '<div class="gt-dna-pending">DNA results not yet received for this client. You will be notified when NutriPath submits them.</div>';
-      return;
-    }
-
-    const received = new Date(dna.received_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
-    const labNotes = dna.result_data?.lab_notes || '';
-    const hasPdf   = !!dna.result_data?.pdf_base64;
-
-    el.innerHTML = `
-      <div class="gt-dna-box">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
-          <div>
-            <div style="font-size:10px;color:var(--blue);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">
-              Results received
-            </div>
-            <div style="font-size:15px;font-weight:500;color:var(--ink)">${received}</div>
-            <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Sequencing: ${dna.sequencing_partner || 'NutriPath US Lab'}</div>
-          </div>
-          ${hasPdf ? `
-            <button onclick="downloadDNAPdf()" style="
-              padding:9px 18px;background:var(--blue-bg);color:var(--blue);
-              border:1px solid var(--blue-bdr);border-radius:8px;
-              font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
-              cursor:pointer;white-space:nowrap">
-              ↓ Download PDF
-            </button>` : `<span style="font-size:12px;color:var(--ink-soft)">No PDF attached</span>`}
-        </div>
-        ${labNotes ? `
-          <div style="background:var(--cream);border-radius:8px;padding:12px 14px;margin-bottom:4px">
-            <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px">Lab notes from NutriPath</div>
-            <div style="font-size:13px;color:var(--ink-mid);line-height:1.6;white-space:pre-wrap">${labNotes}</div>
-          </div>` : ''}
-      </div>
-    `;
+  const record = {
+    pin: "8100",              // same PIN concept as the Engine's own login — see README
+    clientCode: clientId,
+    dna: dna,
+    intake: intake,
+    ts: Date.now()
+  };
+  try {
+    window.localStorage.setItem(HANDOFF_KEY, JSON.stringify(record));
+  } catch (e) {
+    log("FAILED to stage handoff (localStorage unavailable): " + e.message);
+    alert("Could not hand this client off to the Engine (localStorage unavailable in this browser/mode).");
+    return;
   }
-
-  function downloadDNAPdf() {
-    const dna = _clientData?.dna;
-    if (!dna?.result_data?.pdf_base64) return;
-    const byteChars = atob(dna.result_data.pdf_base64);
-    const bytes     = new Uint8Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-    const blob = new Blob([bytes], { type: 'application/pdf' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `GeneThrive-DNA-${_currentClientId}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // ── Layer 1 — evidence mapping checkboxes ────────────────────────────────
-  function renderLayer1(profile, dna) {
-    const items = [
-      { id: 'l1_methylation', label: 'Methylation pathway variants identified (MTHFR, MTR, MTRR)' },
-      { id: 'l1_detox',       label: 'Detoxification pathway support indicated' },
-      { id: 'l1_inflammation', label: 'Inflammatory markers elevated — anti-inflammatory formula indicated' },
-      { id: 'l1_hormones',    label: 'Hormone metabolism variants — consider DIM, B6 support' },
-      { id: 'l1_fatigue',     label: 'Energy metabolism — CoQ10, ribose, B-vitamins indicated' },
-      { id: 'l1_bone',        label: 'Bone density — Vitamin D3/K2, magnesium indicated' },
-      { id: 'l1_gut',         label: 'Gut microbiome — probiotic strains, glutamine indicated' },
-      { id: 'l1_iron',        label: profile?.blood?.answer === 'yes' ? '⚠ Haematological condition — review iron supplementation carefully' : 'Iron status — standard inclusion', flagged: profile?.blood?.answer === 'yes' },
-      { id: 'l1_omega',       label: 'Omega-3 fatty acid conversion — EPA/DHA support' },
-      { id: 'l1_antioxidant', label: 'Oxidative stress — antioxidant complex indicated' },
-    ];
-
-    document.getElementById('layer1-items').innerHTML = items.map(item => `
-      <label style="display:flex;align-items:flex-start;gap:10px;padding:8px 4px;cursor:pointer;border-bottom:1px solid var(--warm)">
-        <input type="checkbox" id="${item.id}" style="margin-top:2px;accent-color:var(--sage);flex-shrink:0">
-        <span style="font-size:13px;color:${item.flagged ? 'var(--red)' : 'var(--ink-mid)'}${item.flagged ? ';font-weight:500' : ''}">${item.label}</span>
-      </label>
-    `).join('');
-  }
-
-  // ── Supplement table ─────────────────────────────────────────────────────
-  let rowCount = 0;
-
-  function resetSupplementTable() {
-    rowCount = 0;
-    document.getElementById('supplement-rows').innerHTML = '';
-    addSupplementRow();
-    addSupplementRow();
-    addSupplementRow();
-  }
-
-  function addSupplementRow() {
-    rowCount++;
-    const id  = rowCount;
-    const row = document.createElement('tr');
-    row.id    = `supp-row-${id}`;
-    row.innerHTML = `
-      <td><input type="text" placeholder="e.g. Methylfolate" id="supp-name-${id}"></td>
-      <td><input type="text" placeholder="e.g. 400mcg" id="supp-dose-${id}" style="width:100px"></td>
-      <td>
-        <select id="supp-freq-${id}">
-          <option>Once daily</option>
-          <option>Twice daily</option>
-          <option>Three times daily</option>
-          <option>With meals</option>
-          <option>At night</option>
-          <option>As directed</option>
-        </select>
-      </td>
-      <td><input type="text" placeholder="Notes..." id="supp-notes-${id}"></td>
-      <td><span class="gt-del-row" onclick="delRow(${id})">✕</span></td>
-    `;
-    document.getElementById('supplement-rows').appendChild(row);
-  }
-
-  function delRow(id) {
-    const row = document.getElementById(`supp-row-${id}`);
-    if (row) row.remove();
-  }
-
-  function getSupplementList() {
-    const items = [];
-    document.querySelectorAll('[id^="supp-row-"]').forEach(row => {
-      const id   = row.id.replace('supp-row-', '');
-      const name = document.getElementById(`supp-name-${id}`)?.value.trim();
-      if (name) {
-        items.push({
-          name,
-          dose:      document.getElementById(`supp-dose-${id}`)?.value.trim(),
-          frequency: document.getElementById(`supp-freq-${id}`)?.value,
-          notes:     document.getElementById(`supp-notes-${id}`)?.value.trim(),
-        });
-      }
-    });
-    return { items };
-  }
-
-  // ── Sign off ─────────────────────────────────────────────────────────────
-  async function signOff() {
-    const notes = document.getElementById('clinical-notes').value.trim();
-    const supplementList = getSupplementList();
-    const btn   = document.getElementById('signoff-btn');
-
-    if (!supplementList.items.length) {
-      showError('Please add at least one supplement to the formula before signing off.');
-      return;
-    }
-    if (!notes) {
-      showError('Please add clinical notes before signing off.');
-      return;
-    }
-    if (!confirm(`Sign off on ${_currentClientId} and send the compounding script to TSI?`)) return;
-
-    btn.classList.add('loading');
-    btn.disabled    = true;
-    btn.textContent = 'Sending to TSI...';
-    clearAlerts();
-
-    try {
-      const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/barbara-engine`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Partner-Token': _token },
-        body: JSON.stringify({
-          action: 'sign_off',
-          clientId: _currentClientId,
-          supplementList,
-          notes,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Sign-off failed');
-
-      showSuccess(`✓ Signed off on ${_currentClientId}. Script sent to TSI. Your payment has been released.`);
-
-      // Update sidebar — mark as done
-      document.querySelectorAll('.gt-client-item').forEach(el => {
-        if (el.querySelector('.gt-client-id')?.textContent === _currentClientId) {
-          el.classList.add('reviewed');
-          el.querySelector('.gt-client-badge').className = 'gt-client-badge done';
-          el.querySelector('.gt-client-badge').textContent = 'Reviewed';
-        }
-      });
-
-      btn.textContent = 'Signed off ✓';
-
-    } catch (err) {
-      showError(err.message);
-      btn.classList.remove('loading');
-      btn.disabled    = false;
-      btn.textContent = 'Sign off & send to TSI';
-    }
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function showSuccess(msg) {
-    const el = document.getElementById('alert-success');
-    el.textContent = msg; el.classList.add('visible');
-    document.getElementById('alert-error').classList.remove('visible');
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  function showError(msg) {
-    const el = document.getElementById('alert-error');
-    el.textContent = msg; el.classList.add('visible');
-    document.getElementById('alert-success').classList.remove('visible');
-  }
-
-  function clearAlerts() {
-    document.getElementById('alert-success').classList.remove('visible');
-    document.getElementById('alert-error').classList.remove('visible');
-  }
+  log("Staged DNA + intake for " + clientId + "; opening Engine tab…");
+  window.open(ENGINE_FILE + "?portal=1&client=" + encodeURIComponent(clientId), "_blank");
+}
 </script>
 </body>
 </html>

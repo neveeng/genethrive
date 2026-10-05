@@ -1,119 +1,136 @@
 /**
- * GeneThrive — shared PostgREST REST client
- * =============================================================================
- * Thin wrapper around Supabase's PostgREST HTTP API, used by every Netlify
- * function in this project that reads from or writes to Supabase. All calls
- * use the service_role key (bypasses RLS — appropriate for server-side only,
- * never exposed to a browser).
+ * GeneThrive — tiny shared helper for talking to Supabase's REST API (PostgREST).
  *
- * Exports:
- *   selectByColumn(table, column, value)   — returns array of matching rows
- *   insertRow(table, data)                 — inserts one row, returns it
- *   upsertRow(table, data, onConflict)     — upserts one row, returns it
- *   updateRows(table, matchCol, matchVal, data) — updates matching rows
+ * Why this exists: every Netlify function in this project needs to read/write
+ * rows in the LOCKED schema (see ../../supabase_schema.sql) — orders,
+ * client_contacts, status_events, sla_clocks, health_profiles, dna_results.
+ * Rather than duplicating the same fetch() calls in each file, they all share
+ * this one tiny helper. It uses only the built-in `fetch` (Node 18+, which
+ * Netlify Functions run on) — no npm dependency.
  *
- * ENVIRONMENT VARIABLES NEEDED:
- *   SUPABASE_URL            — e.g. https://xxxx.supabase.co
- *   SUPABASE_SERVICE_KEY — the service_role (not anon) key
+ * Supabase's REST API is just PostgREST: every table (and view — see
+ * selectAll('client_pipeline') usage elsewhere in this project) is
+ * automatically exposed at {SUPABASE_URL}/rest/v1/{table}, and you talk to it
+ * with normal HTTP verbs plus a couple of required headers. We only ever use
+ * the SERVICE ROLE key here (never the public "anon" key), because this code
+ * runs server-side in Netlify Functions and needs full read/write access,
+ * bypassing RLS entirely — matching supabase_schema.sql's own comment: "the
+ * six clinical writes in this project ... are exactly the kind of trusted
+ * server code the checklist has in mind, never the browser."
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-function baseHeaders() {
-  return {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=representation',
-  };
+function assertConfigured() {
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+    throw new Error(
+      'SUPABASE_URL and SUPABASE_SERVICE_KEY must both be set as Netlify ' +
+      'environment variables (Site settings -> Environment variables).'
+    );
+  }
+}
+
+function headers(extra) {
+  return Object.assign(
+    {
+      apikey: SERVICE_ROLE_KEY,
+      Authorization: 'Bearer ' + SERVICE_ROLE_KEY,
+      'Content-Type': 'application/json',
+    },
+    extra || {}
+  );
 }
 
 /**
- * Select rows from a table where column = value (exact match).
- * Returns an array (may be empty).
+ * Look up rows in `table` where `column` equals `value`. Returns an array
+ * (empty if nothing matched). `selectClause` defaults to '*' but callers that
+ * need a PostgREST embed (e.g. 'id,client_contacts(*)') can pass one.
  */
-async function selectByColumn(table, column, value) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('supabase-rest: SUPABASE_URL or SUPABASE_SERVICE_KEY env var is missing');
-  }
-  const url = `${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${encodeURIComponent(value)}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { ...baseHeaders(), 'Prefer': 'return=representation' },
-  });
+async function selectByColumn(table, column, value, selectClause) {
+  assertConfigured();
+  const url =
+    SUPABASE_URL + '/rest/v1/' + table + '?' + column + '=eq.' + encodeURIComponent(value) +
+    '&select=' + encodeURIComponent(selectClause || '*');
+  const res = await fetch(url, { method: 'GET', headers: headers() });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`supabase-rest selectByColumn(${table}, ${column}): ${res.status} ${body}`);
+    throw new Error('Supabase select failed (' + res.status + '): ' + (await res.text()));
   }
   return res.json();
 }
 
 /**
- * Insert a single row into a table. Returns the inserted row.
+ * Look up every row in `table` (or view — e.g. 'client_pipeline'), unfiltered.
  */
-async function insertRow(table, data) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('supabase-rest: SUPABASE_URL or SUPABASE_SERVICE_KEY env var is missing');
-  }
-  const url = `${SUPABASE_URL}/rest/v1/${table}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: baseHeaders(),
-    body: JSON.stringify(data),
-  });
+async function selectAll(table, selectClause) {
+  assertConfigured();
+  const url = SUPABASE_URL + '/rest/v1/' + table + '?select=' + encodeURIComponent(selectClause || '*');
+  const res = await fetch(url, { method: 'GET', headers: headers() });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`supabase-rest insertRow(${table}): ${res.status} ${body}`);
+    throw new Error('Supabase select failed (' + res.status + '): ' + (await res.text()));
   }
-  const rows = await res.json();
-  return Array.isArray(rows) ? rows[0] : rows;
+  return res.json();
 }
 
 /**
- * Upsert a single row into a table, resolving conflicts on the given column.
- * Returns the upserted row.
+ * Insert a new row into `table`. `Prefer: return=representation` asks
+ * PostgREST to hand back the row it just created (with defaults filled in).
  */
-async function upsertRow(table, data, onConflict) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('supabase-rest: SUPABASE_URL or SUPABASE_SERVICE_KEY env var is missing');
-  }
-  const url = `${SUPABASE_URL}/rest/v1/${table}`;
+async function insertRow(table, row) {
+  assertConfigured();
+  const url = SUPABASE_URL + '/rest/v1/' + table;
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      ...baseHeaders(),
-      'Prefer': `return=representation,resolution=merge-duplicates`,
-    },
-    body: JSON.stringify(data),
+    headers: headers({ Prefer: 'return=representation' }),
+    body: JSON.stringify(row),
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`supabase-rest upsertRow(${table}): ${res.status} ${body}`);
+    throw new Error('Supabase insert failed (' + res.status + '): ' + (await res.text()));
   }
   const rows = await res.json();
-  return Array.isArray(rows) ? rows[0] : rows;
+  return rows[0];
 }
 
 /**
- * Update rows in a table where matchCol = matchVal.
- * Returns array of updated rows.
+ * Update the row(s) in `table` where `column` equals `value`, merging in the
+ * fields in `patch`.
  */
-async function updateRows(table, matchCol, matchVal, data) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new Error('supabase-rest: SUPABASE_URL or SUPABASE_SERVICE_KEY env var is missing');
-  }
-  const url = `${SUPABASE_URL}/rest/v1/${table}?${matchCol}=eq.${encodeURIComponent(matchVal)}`;
+async function updateByColumn(table, column, value, patch) {
+  assertConfigured();
+  const url =
+    SUPABASE_URL + '/rest/v1/' + table + '?' + column + '=eq.' + encodeURIComponent(value);
   const res = await fetch(url, {
     method: 'PATCH',
-    headers: baseHeaders(),
-    body: JSON.stringify(data),
+    headers: headers({ Prefer: 'return=representation' }),
+    body: JSON.stringify(patch),
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`supabase-rest updateRows(${table}, ${matchCol}): ${res.status} ${body}`);
+    throw new Error('Supabase update failed (' + res.status + '): ' + (await res.text()));
   }
-  return res.json();
+  const rows = await res.json();
+  return rows[0] || null;
 }
 
-module.exports = { selectByColumn, insertRow, upsertRow, updateRows };
+/**
+ * Upsert (insert, or update on conflict) a row into `table`, matching
+ * PostgREST's `Prefer: resolution=merge-duplicates` upsert behaviour keyed on
+ * `onConflictColumn` (a unique/primary-key column). Used for the exactly-one-
+ * row-per-order clinical tables (health_profiles, dna_results), where a
+ * client or lab result may legitimately be resubmitted/corrected.
+ */
+async function upsertRow(table, row, onConflictColumn) {
+  assertConfigured();
+  const url = SUPABASE_URL + '/rest/v1/' + table + '?on_conflict=' + encodeURIComponent(onConflictColumn);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: headers({ Prefer: 'resolution=merge-duplicates,return=representation' }),
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    throw new Error('Supabase upsert failed (' + res.status + '): ' + (await res.text()));
+  }
+  const rows = await res.json();
+  return rows[0];
+}
+
+module.exports = { selectByColumn, selectAll, insertRow, updateByColumn, upsertRow };

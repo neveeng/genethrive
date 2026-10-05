@@ -740,13 +740,11 @@ function _setClientIdFromLookup(id){
 // The client already gave us name, mobile, email and delivery address when they
 // subscribed and paid (Shopify checkout). They should never have to type that in
 // again here. Whatever system links to this form (Shopify order confirmation,
-// Neveen's portal, a Supabase-backed emailed link, etc.) can hand that data over
+// a Supabase-backed emailed link, etc.) can hand that data over
 // in either of two ways, and this form accepts both:
 //   1) window.GENETHRIVE_PREFILL = {...} set by the hosting page BEFORE this
 //      form's own <script> block runs (e.g. server-side templated into the page,
-//      or written by the portal that generates the client's personal link) — the
-//      preferred path once Neveen's backend exists, since it avoids putting
-//      personal data in a URL.
+//      or written by the portal that generates the client's personal link) 
 //   2) URL query parameters, e.g. ?cid=GT-2026-0002&firstName=Jacqueline&
 //      lastName=Courtney&email=...&mobile=...&addrStreet=...&addrSuburb=...&
 //      addrState=NSW&addrPostcode=2000 — useful for testing, or for a simple
