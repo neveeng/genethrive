@@ -16,14 +16,18 @@
  *
  * Returns { ok: true, practitionerId } or { ok: false, statusCode, error }.
  */
-const { verify } = require('./session-token');
+import { verify } from './session-token';
 
 function requireSession(event) {
   if (process.env.REQUIRE_PRACTITIONER_TOKEN !== 'true') {
     return { ok: true, practitionerId: null, enforced: false };
   }
+  // Accept token from either:
+  //   Authorization: Bearer <token>   (standard)
+  //   X-Practitioner-Token: <token>   (portal's custom header)
   const authHeader = (event.headers && (event.headers.authorization || event.headers.Authorization)) || '';
-  const token = authHeader.replace(/^Bearer\s+/i, '');
+  const customHeader = (event.headers && (event.headers['x-practitioner-token'] || event.headers['X-Practitioner-Token'])) || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '') || customHeader;
   const payload = verify(token);
   if (!payload) {
     return { ok: false, statusCode: 401, error: 'Missing or invalid/expired session token' };
@@ -31,4 +35,4 @@ function requireSession(event) {
   return { ok: true, practitionerId: payload.practitionerId, enforced: true };
 }
 
-module.exports = { requireSession };
+export default { requireSession };

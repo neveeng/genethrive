@@ -230,11 +230,19 @@ async function loadClients() {
   let clients;
   try {
     const r = await fetch(API_BASE + "/.netlify/functions/list-clients", { headers: authHeaders() });
+    if (r.status === 401) {
+      // Session expired or token not accepted — return to login.
+      note.textContent = "Session expired. Please log in again.";
+      _sessionToken = null;
+      document.getElementById("dashboard").style.display = "none";
+      document.getElementById("login-screen").style.display = "block";
+      return;
+    }
     if (!r.ok) throw new Error("server responded " + r.status);
     clients = await r.json();
-    note.textContent = "Live from the unified GeneThrive backend (/.netlify/functions/list-clients).";
+    note.textContent = "Live from the GeneThrive backend.";
   } catch (e) {
-    note.textContent = "Backend not reachable — check your Netlify functions are deployed and environment variables are set.";
+    note.textContent = "Backend not reachable - check your Netlify functions are deployed and environment variables are set.";
     renderClients([]);
     return;
   }
