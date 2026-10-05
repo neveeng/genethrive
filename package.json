@@ -17,20 +17,13 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "knex": "^3.2.8",
-    "nodemailer": "^8.0.7",
+    "nodemailer": "^10.0.14",
     "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
     "sqlite3": "^6.0.1",
     "stripe": "^20.4.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/neveeng/genethrive.git"
-  },
-  "bugs": {
-    "url": "https://github.com/neveeng/genethrive/issues"
-  },
-  "homepage": "https://github.com/neveeng/genethrive#readme"
+    "nodemon": "^1.14.10"
+  }
 }
