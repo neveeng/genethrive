@@ -8,7 +8,7 @@
  *
  * ENVIRONMENT VARIABLES NEEDED: SUPABASE_URL, SUPABASE_SERVICE_KEY.
  */
-import { selectByColumn, insertRow } from './_lib/supabase-rest';
+const { selectByColumn, insertRow } = require('./_lib/supabase-rest');
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {

@@ -17,8 +17,8 @@
  *
  * ENVIRONMENT VARIABLES NEEDED: SUPABASE_URL, SUPABASE_SERVICE_KEY.
  */
-import { selectByColumn, updateByColumn } from './_lib/supabase-rest';
-import { writeDnaResultForOrder } from './_lib/write-dna-result';
+const { selectByColumn, updateByColumn } = require('./_lib/supabase-rest');
+const { writeDnaResultForOrder } = require('./_lib/write-dna-result');
 
 export async function handler(event) {
   if (event.httpMethod !== 'POST') {
