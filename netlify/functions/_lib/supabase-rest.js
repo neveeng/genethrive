@@ -23,7 +23,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 function assertConfigured() {
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
     throw new Error(
       'SUPABASE_URL and SUPABASE_SERVICE_KEY must both be set as Netlify ' +
       'environment variables (Site settings -> Environment variables).'
@@ -34,8 +34,8 @@ function assertConfigured() {
 function headers(extra) {
   return Object.assign(
     {
-      apikey: SERVICE_ROLE_KEY,
-      Authorization: 'Bearer ' + SERVICE_ROLE_KEY,
+      apikey: SUPABASE_KEY,
+      Authorization: 'Bearer ' + SUPABASE_KEY,
       'Content-Type': 'application/json',
     },
     extra || {}
@@ -133,4 +133,4 @@ async function upsertRow(table, row, onConflictColumn) {
   return rows[0];
 }
 
-module.exports = { selectByColumn, selectAll, insertRow, updateByColumn, upsertRow };
+export default { selectByColumn, selectAll, insertRow, updateByColumn, upsertRow };
