@@ -16,7 +16,7 @@
  *
  * Returns { ok: true, practitionerId } or { ok: false, statusCode, error }.
  */
-import { verify } from './session-token';
+const { verify } = require('./session-token');
 
 function requireSession(event) {
   if (process.env.REQUIRE_PRACTITIONER_TOKEN !== 'true') {
@@ -35,4 +35,4 @@ function requireSession(event) {
   return { ok: true, practitionerId: payload.practitionerId, enforced: true };
 }
 
-export default { requireSession };
+module.exports = { requireSession };
