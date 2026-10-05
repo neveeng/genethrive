@@ -79,7 +79,7 @@ exports.handler = async function handler(event) {
         const [contactRows, healthProfileRows, dnaResultRows] = await Promise.all([
           selectByColumn('client_contacts', 'id', order.client_contact_id),
           selectByColumn('health_profiles', 'order_id', order.id),
-          selectByColumn('dna_results', 'order_id', order.id),
+          selectByColumn('dna_results', 'client_id', order.order_ref),
         ]);
         const contact = contactRows[0] || {};
         const healthProfile = healthProfileRows[0] || null;
