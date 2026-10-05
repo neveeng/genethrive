@@ -225,9 +225,9 @@
       const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/lookup-order?clientId=${encodeURIComponent(clientId)}`);
       const data = await res.json();
       if (!res.ok || !data.order) throw new Error(data.error || 'Not found');
-      document.getElementById('info-order').textContent  = `#${data.order.order_number}`;
+      document.getElementById('info-order').textContent  = data.order.clientId || data.order.order_number || clientId;
       document.getElementById('info-email').textContent  = data.order.email;
-      document.getElementById('info-status').textContent = data.order.tags?.includes('dna-results-received') ? '⚠ Results already submitted' : '✓ Ready for submission';
+      document.getElementById('info-status').textContent = '✓ Ready for submission';
       document.getElementById('order-info').classList.add('visible');
     } catch (err) {
       showError(`Could not find order: ${err.message}`);

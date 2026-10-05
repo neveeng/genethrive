@@ -7,21 +7,20 @@
  *
  * WHAT IT DOES:
  *   1. Verifies Nutripath's session token
- *   2. Looks up Shopify order by Client ID
+ *   2. Looks up order in Supabase by Client ID (order_ref)
  *   3. Saves DNA results to Supabase dna_results table
  *   4. Stamps dna_results_received_at on order_sla + advances SLA stage
  *   5. Releases second Nutripath payment ($137.50) via Stripe
  *   6. Emails DNA results PDF to naturopath
  *   7. Emails results notification to GeneThrive ops
  *   8. Notifies client that results are ready
- *   9. Tags Shopify order: dna-results-received
+ *   9. Tags Shopify order: dna-results-received (non-fatal if Shopify not configured)
  *
  * ENVIRONMENT VARIABLES:
  *   PARTNER_TOKEN_SECRET
  *   SUPABASE_URL / SUPABASE_SERVICE_KEY
- *   STRIPE_SECRET_KEY
- *   STRIPE_ACCOUNT_NUTRIPATH
- *   SHOPIFY_STORE_DOMAIN / SHOPIFY_ADMIN_TOKEN
+ *   STRIPE_SECRET_KEY / STRIPE_ACCOUNT_NUTRIPATH
+ *   SHOPIFY_STORE_DOMAIN / SHOPIFY_ADMIN_TOKEN  (optional — tagging only)
  *   SMTP_HOST / PORT / USER / PASS
  *   EMAIL_FROM / EMAIL_OPS / EMAIL_NATUROPATH / EMAIL_REPLY_TO
  * ─────────────────────────────────────────────────────────────────────────────
@@ -94,6 +93,24 @@ async function supabaseUpsert(table, body) {
   }
 }
 
+async function supabaseGet(table, column, value) {
+  const res = await fetch(
+    `${process.env.SUPABASE_URL}/rest/v1/${table}?${column}=eq.${encodeURIComponent(value)}&limit=1`,
+    {
+      headers: {
+        'apikey':        process.env.SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      },
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase GET ${table} failed (${res.status}): ${text}`);
+  }
+  const rows = await res.json();
+  return rows[0] || null;
+}
+
 exports.handler = async function (event) {
 
   const corsHeaders = {
@@ -117,8 +134,8 @@ exports.handler = async function (event) {
   try {
     const body = JSON.parse(event.body);
     clientId   = body.clientId?.trim();
-    pdfBase64  = body.pdfBase64;   // base64-encoded PDF file
-    notes      = body.notes || ''; // optional text notes
+    pdfBase64  = body.pdfBase64;
+    notes      = body.notes || '';
   } catch {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
@@ -127,14 +144,10 @@ exports.handler = async function (event) {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing clientId or PDF' }) };
   }
 
-  // 3. Look up Shopify order
-  let order;
+  // 3. Look up order in Supabase
+  let order, clientEmail;
   try {
-    const res  = await shopifyFetch(
-      `/admin/api/2024-01/orders.json?tag=client-id:${encodeURIComponent(clientId)}&status=any&limit=1`
-    );
-    const data = await res.json();
-    order      = data.orders?.[0];
+    order = await supabaseGet('orders', 'order_ref', clientId);
   } catch (err) {
     return { statusCode: 500, headers: corsHeaders, body: JSON.stringify({ error: 'Could not look up order' }) };
   }
@@ -143,14 +156,11 @@ exports.handler = async function (event) {
     return { statusCode: 404, headers: corsHeaders, body: JSON.stringify({ error: `No order found for ${clientId}` }) };
   }
 
-  // Idempotency — don't process twice
-  if (order.tags?.includes('dna-results-received')) {
-    return {
-      statusCode: 409,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'DNA results already submitted for this Client ID' }),
-    };
-  }
+  // Get client email for notification
+  try {
+    const contact = await supabaseGet('client_contacts', 'id', order.client_contact_id);
+    clientEmail = contact && contact.email;
+  } catch (_) {}
 
   const now       = new Date().toISOString();
   const orderDate = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -166,7 +176,7 @@ exports.handler = async function (event) {
       received_at:        now,
       sequencing_partner: 'NutriPath US Lab',
       result_data: {
-        pdf_base64:   pdfBase64,   // Barbara downloads via her portal
+        pdf_base64:   pdfBase64,
         lab_notes:    notes,
         submitted_by: 'nutripath',
         submitted_at: now,
@@ -175,7 +185,6 @@ exports.handler = async function (event) {
     console.log(`GeneThrive: DNA results saved to Supabase for ${clientId}`);
   } catch (err) {
     console.error('GeneThrive: Supabase dna_results save failed —', err.message);
-    // Fatal — Nutripath portal must retry rather than losing the results
     return {
       statusCode: 500,
       headers: corsHeaders,
@@ -184,7 +193,6 @@ exports.handler = async function (event) {
   }
 
   // 5. Stamp dna_results_received_at on order_sla + advance SLA stage to 'sequencing'
-  //    Non-fatal — SLA tracking failure must not block the order flow.
   try {
     await supabasePatch(
       `/order_sla?client_id=eq.${encodeURIComponent(clientId)}`,
@@ -201,7 +209,7 @@ exports.handler = async function (event) {
     try {
       const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
       const transfer = await stripe.transfers.create({
-        amount:      parseInt(process.env.PRICE_NUTRIPATH_2_CENTS || "13750"),
+        amount:      parseInt(process.env.PRICE_NUTRIPATH_2_CENTS || '13750'),
         currency:    'aud',
         destination: process.env.STRIPE_ACCOUNT_NUTRIPATH,
         description: `GeneThrive ${clientId} — DNA results payment (2nd half)`,
@@ -210,7 +218,6 @@ exports.handler = async function (event) {
       console.log(`GeneThrive: Nutripath 2nd payment $137.50 transferred — ${transfer.id}`);
     } catch (err) {
       console.error('GeneThrive: Nutripath 2nd transfer failed —', err.message);
-      // Non-fatal — continue with emails
     }
   }
 
@@ -218,7 +225,7 @@ exports.handler = async function (event) {
   const transporter = createTransporter();
 
   try {
-    await Promise.all([
+    const emailPromises = [
 
       // Email to naturopath with results PDF
       transporter.sendMail({
@@ -291,11 +298,13 @@ exports.handler = async function (event) {
           </div>
         `,
       }),
+    ];
 
-      // Client notification
-      transporter.sendMail({
+    // Client notification — only if we have their email
+    if (clientEmail) {
+      emailPromises.push(transporter.sendMail({
         from:    process.env.EMAIL_FROM,
-        to:      order.email,
+        to:      clientEmail,
         replyTo: process.env.EMAIL_REPLY_TO,
         subject: `Your DNA results are in — ${clientId}`,
         html: `
@@ -320,25 +329,33 @@ exports.handler = async function (event) {
             </div>
           </div>
         `,
-      }),
+      }));
+    }
 
-    ]);
+    await Promise.all(emailPromises);
     console.log(`GeneThrive: Nutripath submit emails sent for ${clientId}`);
   } catch (err) {
     console.error('GeneThrive: Email sending failed —', err.message);
   }
 
-  // 8. Tag Shopify order
+  // 8. Tag Shopify order (non-fatal — Shopify env vars may not be set)
   try {
-    const existingTags = order.tags ? order.tags.split(', ') : [];
-    existingTags.push('dna-results-received');
-    await shopifyFetch(`/admin/api/2024-01/orders/${order.id}.json`, {
-      method: 'PUT',
-      body:   JSON.stringify({ order: { id: order.id, tags: existingTags.join(', ') } }),
-    });
-    console.log(`GeneThrive: Order #${order.order_number} tagged dna-results-received`);
+    const res  = await shopifyFetch(
+      `/admin/api/2024-01/orders.json?tag=client-id:${encodeURIComponent(clientId)}&status=any&limit=1`
+    );
+    const data  = await res.json();
+    const shopifyOrder = data.orders?.[0];
+    if (shopifyOrder) {
+      const existingTags = shopifyOrder.tags ? shopifyOrder.tags.split(', ') : [];
+      existingTags.push('dna-results-received');
+      await shopifyFetch(`/admin/api/2024-01/orders/${shopifyOrder.id}.json`, {
+        method: 'PUT',
+        body:   JSON.stringify({ order: { id: shopifyOrder.id, tags: existingTags.join(', ') } }),
+      });
+      console.log(`GeneThrive: Shopify order tagged dna-results-received for ${clientId}`);
+    }
   } catch (err) {
-    console.warn('GeneThrive: Order tagging failed —', err.message);
+    console.warn('GeneThrive: Shopify order tagging failed (non-fatal) —', err.message);
   }
 
   return {
