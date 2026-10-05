@@ -85,4 +85,4 @@ async function sendSms({ to, body }) {
   return { ok: true, simulated: false, providerId: msgId || null };
 }
 
-export default { sendEmail, sendSms };
+module.exports = { sendEmail, sendSms };

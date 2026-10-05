@@ -18,7 +18,7 @@
  * scripts vary per client protocol.
  */
 
-import Stripe from 'stripe';
+const Stripe = require('stripe');
 
 async function payPayee({ payee, amountCents, orderRef, reference }) {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -54,4 +54,4 @@ async function payPayee({ payee, amountCents, orderRef, reference }) {
   }
 }
 
-export default { payPayee };
+module.exports = { payPayee };

@@ -133,4 +133,4 @@ async function upsertRow(table, row, onConflictColumn) {
   return rows[0];
 }
 
-export default { selectByColumn, selectAll, insertRow, updateByColumn, upsertRow };
+module.exports = { selectByColumn, selectAll, insertRow, updateByColumn, upsertRow };
