@@ -38,7 +38,7 @@ exports.handler = async function handler(event) {
     const [contactRows, healthProfileRows, dnaResultRows] = await Promise.all([
       selectByColumn('client_contacts', 'id',       order.client_contact_id),
       selectByColumn('health_profiles', 'order_id', order.id),
-      selectByColumn('dna_results',     'client_id', order.order_ref),  // ← fixed: client_id not order_id
+      selectByColumn('dna_results',     'client_id', order.order_ref),  
     ]);
 
     const contact       = contactRows[0]      || {};
@@ -56,7 +56,7 @@ exports.handler = async function handler(event) {
       addrState:       contact.addr_state,
       addrPostcode:    contact.addr_postcode,
       intakeCompleted: !!(healthProfile && healthProfile.completed_at),
-      dnaResults:      dnaResult     ? dnaResult.result_data  : null,  // ← fixed: result_data not results_json
+      dnaResults:      dnaResult     ? dnaResult.result_data  : null,  
       healthProfile:   healthProfile ? healthProfile.payload   : null,
     };
 
