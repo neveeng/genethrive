@@ -21,7 +21,7 @@
  * ENVIRONMENT VARIABLES NEEDED:
  *   PRACTITIONER_PIN_HASHES — a JSON object, e.g.
  *     {"barbara_baldwin": {"pinHash": "<sha256 hex of her PIN>", "name": "Barbara Baldwin"}}
- *   Generate a hash with: node -e "console.log(require('crypto').createHash('sha256').update('8100').digest('hex'))"
+ *   Generate a hash with: node -e "console.log(require('crypto').createHash('sha256').update('YOUR_PIN_HERE').digest('hex'))"
  *   Set this ONLY as a Netlify environment variable — never commit it to any
  *   file, unlike the Engine's own pinHash (which has to ship in the HTML
  *   because that file is a standalone offline tool with nowhere else to look
