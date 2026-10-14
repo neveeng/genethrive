@@ -4,8 +4,8 @@
  * Converts the Client Health Profile intake wizard's `buildRecord()` output
  * (see GeneThrive_ClientHealthProfile_Form_Wizard_25Sep2026.html) into the
  * EXACT shape the Engine's own `importIntakeJson()` validator requires — the
- * "genethrive.intake.v1" schema (see GeneThrive_Engine_v3.5.147_PATCHED_*
- * .html, section "4.2 importIntakeJson", read field-by-field to build this).
+ * "genethrive.intake.v1" schema (see GeneThrive_Engine.html*
+ * , section "4.2 importIntakeJson", read field-by-field to build this).
  *
  * Root cause of the bug this fixes: the wizard's record has NO `schema`
  * field at all, and importIntakeJson() does exactly one hard check —

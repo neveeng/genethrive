@@ -82,8 +82,9 @@ async function supabasePatch(path, body) {
   }
 }
 
-async function supabaseUpsert(table, body) {
-  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${table}`, {
+async function supabaseUpsert(table, body, conflictColumn) {
+  const qs  = conflictColumn ? `?on_conflict=${encodeURIComponent(conflictColumn)}` : '';
+  const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${table}${qs}`, {
     method: 'POST',
     headers: {
       'Content-Type':  'application/json',
@@ -200,7 +201,7 @@ exports.handler = async function (event) {
         submitted_by: 'nutripath',
         submitted_at: now,
       },
-    });
+    }, 'client_id');
     console.log(`GeneThrive: DNA results saved to Supabase for ${clientId} — ${dnaExtractJson.variants?.length || 0} variants`);
   } catch (err) {
     console.error('GeneThrive: Supabase dna_results save failed —', err.message);

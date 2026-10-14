@@ -31,7 +31,7 @@ genethrive_backend/
       save-dna-result.js           # DNA extract -> dna_results (CLINICAL) + results.landed status_events
   portal/
     barbara_portal.html            # UNCHANGED — PIN gate + Open-in-Engine handoff
-    GeneThrive_Engine_v3.5.147_WITH_PortalHandoff.html
+    GeneThrive_Engine.html
     ENGINE_PATCH_PortalHandoff.md
   local-test-server/
     mock-supabase.js               # generic multi-table PostgREST mock (select/insert/update/upsert)

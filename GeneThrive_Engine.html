@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GeneThrive Protocol Engine</title>
+  <title>GeneThrive Protocol Engine - Version 3.5.148</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1275,16 +1275,7 @@
 // ============================================================
 // ENGINE VERSION
 // ============================================================
-const ENGINE_VERSION = "3.5.147";
-// [ADDED 29 Sep 2026] Backend base URL for Barbara's Accept/Reject persistence
-// (save-item-selection.js / get-item-selections.js, see
-// GeneThrive_Handover_ForNeveen_27Sep2026's accept_reject_persistence_NEW/).
-// Left blank by default — every write/read call this powers silently no-ops
-// when blank, so shipping this constant changes NOTHING about the Engine's
-// existing behaviour until whoever deploys those two Netlify functions sets
-// this to that deployment's base URL (e.g. "https://<site>.netlify.app/.netlify/functions").
-// This is the ONLY line that needs editing to turn the persistence on.
-const GENETHRIVE_BACKEND_URL = "";
+const ENGINE_VERSION = "3.5.148"; // bumped 14 Oct 2026, 4:35pm AEDT — contact-fields fix (mobile/email/address now read from intake file)
 // The rule range shown in the page chrome. ONE definition. Until v3.5.85 the header
 // and footer each hard-coded "Rules 0-0.26", which had been wrong since Rule 0.27
 // (v3546) and Rule 0.28 (v3564) shipped. test_engine_labels.js asserts this label
@@ -2662,7 +2653,7 @@ const GENE_MAP = {
     homozygous: {
       additions: [
         { supplement: "methylfolate (5-MTHF)", dose: 800, unit: "mcg", indication: "MTHFR C677T TT homozygous — GRADE:VERY LOW — Paper 1 is a systematic review of only 7 studies with conflicting evidence, heterogeneous designs, and no definitive conclusions. Paper 2 is a prospective cohort of only 10 patients with mixed MTHFR genotypes (C677T or A1298C, not stratified by TT zygosity), no control group, and small sample. Paper 3 is an animal mechanistic study with no direct human clinical relevance for dosing. Collectively, evidence quality is very low for any specific recommendation regarding TT homozygous individuals. | Form:L-methylfolate (5-MTHF) referenced in Paper 1; Ocufolin® (folate-containing formulation) in Paper 2; methylfolate in Paper 3 | Outcome:Paper 1: antidepressant treatment response / TRD risk; Paper 2: serum homocysteine, hs-CRP, VEGF, and other vascular biomarkers; Paper 3: neurodevelopmental behavioral phenotypes in offspring | Evidence dose:Cannot determine a corrected dose; no paper explicitly evaluated an 800 mcg 5-MTHF dose in TT homozygous individuals. Clinical references for TT homozygous individuals often cite doses of 1000–15000 mcg/day (e.g., 7.5–15 mg/day in psychiatric contexts), but this is not directly supported by any of the three papers reviewed. [BARBARA REVIEW REQUIRED — LOW EVIDENCE]" },
-        { supplement: "riboflavin-5-phosphate (B2)", dose: 50, unit: "mg", indication: "MTHFR C677T TT homozygous — GRADE:VERY LOW (established clinic practice dose; not the trial-tested dose) | Form:riboflavin-5-phosphate (FMN/B2) | Outcome:fasting plasma total homocysteine, TT genotype specifically | Evidence dose:McNulty et al. 2006, Circulation, DOI:10.1161/CIRCULATIONAHA.105.580332 — a real RCT that tested riboflavin 1.6 mg/day for 12 weeks specifically in MTHFR 677TT homozygotes (n=35) and found a 22% reduction in homocysteine (P=0.003; up to 40% in those with poor baseline riboflavin status). The engine briefly changed this dose to 1.6 mg on 7 Sep 2026 to match that trial, explicitly pending Barbara Baldwin's sign-off before replacing established clinic practice. On 15 Sep 2026 Barbara was shown this exact trial dose and asked to choose between adopting it, keeping the established 50 mg practice dose, or removing the item. She signed on 25 Sep 2026 (Barbara Sign Off 28th Sept 2026.pdf, item 2) choosing to KEEP the 50 mg practice dose — this is her documented clinical decision, not an unreviewed default. [PRACTITIONER-CONFIRMED 25 Sep 2026 — Barbara Baldwin ATMS 24298 reviewed the 1.6 mg trial dose and elected to retain 50 mg]" }
+        { supplement: "riboflavin-5-phosphate (B2)", dose: 1.6, unit: "mg", indication: "MTHFR C677T TT homozygous — GRADE:LOW (trial-backed direction and dose, in the correct genotype) | Form:riboflavin-5-phosphate (FMN/B2) | Outcome:fasting plasma total homocysteine, TT genotype specifically | Evidence dose:McNulty et al. 2006, Circulation, DOI:10.1161/CIRCULATIONAHA.105.580332 — a real RCT that tested riboflavin 1.6 mg/day for 12 weeks specifically in MTHFR 677TT homozygotes (n=35) and found a 22% reduction in homocysteine (P=0.003; up to 40% in those with poor baseline riboflavin status). Dose corrected 7 Sep 2026 from the prior 50 mg (a practice-dose norm, ~31x the trial dose, that was not itself evidence-derived) to 1.6 mg to match the actual trial. This differs from prior practice-dose norms used elsewhere in functional/psychiatric dosing — retain [BARBARA REVIEW REQUIRED — DOSE CHANGED TO MATCH TRIAL; CONFIRM AGAINST PRIOR PRACTICE NORMS] for practitioner sign-off before this replaces established clinic practice." }
       ],
       avoid: ["folic acid (synthetic)"],
       flags: ["MTHFR_HOMO_C677T — folic acid contraindicated"]
@@ -2755,7 +2746,7 @@ const GENE_MAP = {
     heterozygous: {
       // [CORRECTED 15 Sep 2026 — ROUND 5 SELF-IMPROVEMENT] see matching note on the homozygous
       // branch above — the cited paper is a rat mixed-mineral-water study, not a human review.
-      additions: [{ supplement: "magnesium glycinate", dose: 100, unit: "mg", elementalBasis: true, indication: "COMT V158M AG heterozygous — GRADE:VERY LOW (mechanistic only) | Form:magnesium (divalent-cation cofactor of COMT) | Outcome:a rat feeding study found a mixed-mineral (Na/Ca/Mg/bicarbonate) water altered liver/adrenal COMT activity — NOT a human trial, NOT magnesium in isolation, NOT magnesium glycinate specifically; cited only as mechanistic background that magnesium is a divalent-metal cofactor of COMT | Evidence dose:mechanistic — no human supplementation dose established; engine dose 100 mg ELEMENTAL magnesium (as magnesium glycinate) DOI:10.1684/mrh.2014.0369 [BARBARA REVIEW REQUIRED — LOW EVIDENCE] [PRACTITIONER-CONFIRMED 25 Sep 2026 — Barbara Baldwin ATMS 24298 confirmed this item should be kept, not removed, resolving a conflict between her earlier written note and her signed 20-item checklist (Barbara Sign Off 28th Sept 2026.pdf, item 7). This confirms KEEP vs REMOVE only.] [DOSE-BASIS CHANGE 15 Sep 2026 — PENDING BARBARA RE-SIGN-OFF, SEPARATE AND STILL UNRESOLVED: dose is now specified and delivered as ELEMENTAL magnesium, superseding the 10 June 2026 signed magnesium formulary which read this printed number as salt/compound weight (100mg salt ≈ 14mg elemental at 14.1%). Under the new elemental basis actual magnesium delivered increases ~7x. Not for dispensing until Barbara reviews and re-signs — see MAGNESIUM_DOSE_BASIS_CHANGE_15SEP2026 note above MG_ELEMENTAL_PCT.]" }],
+      additions: [{ supplement: "magnesium glycinate", dose: 100, unit: "mg", elementalBasis: true, indication: "COMT V158M AG heterozygous — GRADE:VERY LOW (mechanistic only) | Form:magnesium (divalent-cation cofactor of COMT) | Outcome:a rat feeding study found a mixed-mineral (Na/Ca/Mg/bicarbonate) water altered liver/adrenal COMT activity — NOT a human trial, NOT magnesium in isolation, NOT magnesium glycinate specifically; cited only as mechanistic background that magnesium is a divalent-metal cofactor of COMT | Evidence dose:mechanistic — no human supplementation dose established; engine dose 100 mg ELEMENTAL magnesium (as magnesium glycinate) DOI:10.1684/mrh.2014.0369 [BARBARA REVIEW REQUIRED — LOW EVIDENCE] [DOSE-BASIS CHANGE 15 Sep 2026 — PENDING BARBARA RE-SIGN-OFF: dose is now specified and delivered as ELEMENTAL magnesium, superseding the 10 June 2026 signed magnesium formulary which read this printed number as salt/compound weight (100mg salt ≈ 14mg elemental at 14.1%). Under the new elemental basis actual magnesium delivered increases ~7x. Not for dispensing until Barbara reviews and re-signs — see MAGNESIUM_DOSE_BASIS_CHANGE_15SEP2026 note above MG_ELEMENTAL_PCT.]" }],
       avoid: [],
       flags: ["COMT_HET — monitor methyl load"]
     },
@@ -2802,7 +2793,7 @@ const GENE_MAP = {
     homozygous: {
       additions: [
         { supplement: "hydroxocobalamin", dose: 1000, unit: "mcg", indication: "MTRR A66G GG homozygous — GRADE:VERY LOW | Form:hydroxocobalamin | Outcome:Fasting plasma total homocysteine (tHcy) in relation to MTRR 66A>G polymorphism, modulated by cobalamin and riboflavin status | Evidence dose:Cannot be determined from available evidence; no study explicitly tested hydroxocobalamin dosing in MTRR 66GG individuals DOI:10.1007/s12263-014-0435-1 [BARBARA REVIEW REQUIRED — LOW EVIDENCE]" },
-        { supplement: "riboflavin-5-phosphate (B2)", dose: 50, unit: "mg", indication: "MTRR A66G GG homozygous — GRADE:VERY LOW | Form:riboflavin (form not specified as FMN/riboflavin-5-phosphate in papers; riboflavin referenced in Paper 2 case report treatment) | Outcome:Homocysteine concentration (Paper 3); homocysteine levels during treatment (Paper 2) | Evidence dose:Insufficient evidence to confirm or correct the 50mg dose; no dose-response or intervention data for riboflavin/FMN in MTRR A66G GG homozygotes were extractable from these papers DOI:10.1007/s12263-014-0435-1 [PRACTITIONER-CONFIRMED 25 Sep 2026 — Barbara Baldwin ATMS 24298 reviewed this alongside the related MTHFR TT riboflavin item and elected to keep the established 50 mg dose (Barbara Sign Off 28th Sept 2026.pdf, item 11)]" }
+        { supplement: "riboflavin-5-phosphate (B2)", dose: 50, unit: "mg", indication: "MTRR A66G GG homozygous — GRADE:VERY LOW | Form:riboflavin (form not specified as FMN/riboflavin-5-phosphate in papers; riboflavin referenced in Paper 2 case report treatment) | Outcome:Homocysteine concentration (Paper 3); homocysteine levels during treatment (Paper 2) | Evidence dose:Insufficient evidence to confirm or correct the 50mg dose; no dose-response or intervention data for riboflavin/FMN in MTRR A66G GG homozygotes were extractable from these papers DOI:10.1007/s12263-014-0435-1 [BARBARA REVIEW REQUIRED — LOW EVIDENCE]" }
       ],
       avoid: [],
       flags: ["MTRR_HOMO — B12 recycling impaired", "SUBLINGUAL_B12_FACTOR"]
@@ -9999,7 +9990,7 @@ const PROTOCOL_CHANGELOG = [
       "A2 (GSTM1 retired): removed from the intake form, LAYER2_GENE_MAP, QUESTION_REGISTER, KNOWLEDGE_ARTIFACT_LIBRARY, and GENE_LOGIC. The now-unreachable GSTM1 branch in getKnowledgeRationale() (NAC pathway text) was removed as dead code rather than left as a silent no-op. GSTM5/rs366631 (the gene the panel row actually measures) carries no supplement rule and is queued for future research — see VARIANT_IDENTITY_QUARANTINE.GSTM1_RETIRED.",
       "Rule 0.27 (Gene Entry Integrity) requires no manual update: RULE_027_ENTRY_GENES is derived dynamically from Object.keys(LAYER2_GENE_MAP) at runtime, so it picks up the AOC1_rs1049793 rename and the GSTM1 removal automatically.",
       "CERTIFICATION (16 Aug 2026): KNOWLEDGE_ARTIFACT_LIBRARY was rebuilt in full from a fresh, real run of pipeline/artifact_compiler.js (libraryHash ab928c0149c83a31b4efb5fe70cf132bb32d6b28e36c59d443147a9f422cf35e; the AOC1_rs1049793 artifact's own hash 5aceb702369f8d3db884fdafb79dfb35272abdbe5a659eea5b3f70e129f7ee10) — no sentinel values remain. The complete project test suite (run_all_tests.js — 50 suites, including test_rule027.js, test_syntax.js, test_knowledge_artifact.js, test_variant_identity_model.js, test_variant_migration_complete.js, test_dna_ingestion.js, test_determinism_goldenset.js, and the differential checks against both reference clients Richard Goodrick GT-2026-0001 and Jacqueline Courtney GT-2026-0002) was run against this build and passed 50/50, plus 120,000 property-based random-profile checks with zero violations. The determinism golden fixtures were regenerated and committed; every difference against the prior fixtures was reviewed and traced solely to this release's approved renaming/retirement (the Knowledge Artifact Library hash, the 'DAO' -> 'AOC1 rs1049793' label text, and the added 'formerly labelled DAO' note) — no other rendered output changed for either reference client. A genuine incidental improvement was found and locked in test coverage: pinning AOC1_rs1049793's rsID (previously blank) now lets the real DNA-PDF auto-import correctly detect and populate this gene for the first time.",
-      "Filename/version note: this build supersedes the working copy of GeneThrive_Engine_v3606.html and is shipped as the newly certified GeneThrive_Engine_v3607.html (ENGINE_VERSION 3.5.107, filename number 3607 = 3500 + 107, consistent with the project's own filename/version arithmetic check)."
+      "Filename/version note: this build supersedes the working copy of GeneThrive_Engine.html and is shipped as the newly certified GeneThrive_Engine.html (ENGINE_VERSION 3.5.107, filename number 3607 = 3500 + 107, consistent with the project's own filename/version arithmetic check)."
     ]
   },
   {
@@ -10817,7 +10808,7 @@ function importClientRecord(record) {
 const CITATION_REGISTRY = {
   "registryVersion": "CR-1",
   "generated": "2026-07-08",
-  "engine": "GeneThrive_Engine_v3576.html",
+  "engine": "GeneThrive_Engine.html",
   "mailto": "hello@genethrive.com.au",
   "citations": [
     {
@@ -11920,7 +11911,7 @@ const CITATION_REGISTRY = {
 const RELEVANCE_REGISTRY = {
   "relevanceVersion": "RG-1",
   "generated": "build-prep",
-  "engine": "GeneThrive_Engine_v3577.html (target)",
+  "engine": "GeneThrive_Engine.html (target)",
   "basis": "CR-1",
   "provisional": true,
   "entries": [
@@ -13649,34 +13640,9 @@ function openNaturopathCopy() {
   html += 'var iframeItemSelections={' + allSelectableItems(r).map(function(item) {
     return JSON.stringify(itemSelectionId(item)) + ':' + JSON.stringify(itemDefaultState(item));
   }).join(',') + '};';
-  // [ADDED 29 Sep 2026 — closes the "Barbara's Accept/Reject decisions aren't
-  // saved anywhere" gap flagged non-negotiable in the 28 Sep audit.]
-  // GT_BACKEND_URL / GT_SESSION_ID are baked in as literals at generation time,
-  // the same way every other client-specific value on this document is (see
-  // esc(fd.clientCode) elsewhere in this function). GT_SESSION_ID uses the
-  // client code as the persistence key, NOT a real engine_sessions.id — this
-  // Engine has no concept of a backend session id anywhere else in this file.
-  // This is a deliberate, documented stand-in: client codes are unique and
-  // stable per client, so it works correctly today. Swap it for the real
-  // engine_sessions.id once the Engine-to-Portal handoff creates and passes
-  // one through (see README_for_Neveen.md, item 3 under "still needed").
-  // If GENETHRIVE_BACKEND_URL is left blank (the shipped default) every
-  // save/restore call below silently no-ops — zero behaviour change from the
-  // previous in-memory-only version. Every network call is fire-and-forget
-  // and try/catch-wrapped so it can never block, slow, or fail the existing
-  // Accept/Reject workflow, even if the backend is unreachable.
-  html += 'var GT_BACKEND_URL=' + JSON.stringify(GENETHRIVE_BACKEND_URL || '') + ';';
-  html += 'var GT_SESSION_ID=' + JSON.stringify(String(fd.clientCode || '')) + ';';
-  html += 'function _gtSaveSelection(id,state){if(!GT_BACKEND_URL||!GT_SESSION_ID)return;try{fetch(GT_BACKEND_URL.replace(/\\/$/,"")+"/save-item-selection",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:GT_SESSION_ID,itemKey:String(id),state:state})}).catch(function(e){console.warn("GeneThrive: save-item-selection failed (decision is still kept in this tab)",e);});}catch(e){console.warn("GeneThrive: save-item-selection threw",e);}}';
-  html += 'function recordItemSelection(id,state){if(id==null)return;if(state!=="accepted"&&state!=="rejected"&&state!=="pending")return;iframeItemSelections[String(id)]=state;if(typeof rebuildItemSelSummary==="function")rebuildItemSelSummary();_gtSaveSelection(id,state);}';
+  html += 'function recordItemSelection(id,state){if(id==null)return;if(state!=="accepted"&&state!=="rejected"&&state!=="pending")return;iframeItemSelections[String(id)]=state;if(typeof rebuildItemSelSummary==="function")rebuildItemSelSummary();}';
   html += 'function getItemSelections(){return iframeItemSelections;}';
   html += 'function rebuildItemSelSummary(){var sel=iframeItemSelections||{};var a=0,p=0,rj=0;for(var k in sel){if(sel[k]==="accepted")a++;else if(sel[k]==="rejected")rj++;else p++;}var el=document.getElementById("item-sel-count");if(el)el.textContent=String(a);var pel=document.getElementById("item-pending-count");if(pel)pel.textContent=String(p);var rel=document.getElementById("item-rejected-count");if(rel)rel.textContent=String(rj);}';
-  // [ADDED 29 Sep 2026] On load, if a backend URL is configured, fetch any
-  // previously-saved decisions for this client and restore them into both the
-  // in-memory store and the on-screen Accept/Reject dropdowns — so reopening a
-  // client's Practitioner Copy no longer resets every item back to Pending.
-  html += 'function _gtRestoreSelections(){if(!GT_BACKEND_URL||!GT_SESSION_ID)return;try{fetch(GT_BACKEND_URL.replace(/\\/$/,"")+"/get-item-selections?sessionId="+encodeURIComponent(GT_SESSION_ID)).then(function(res){if(!res.ok)throw new Error("HTTP "+res.status);return res.json();}).then(function(saved){if(!saved||typeof saved!=="object")return;for(var k in saved){if(Object.prototype.hasOwnProperty.call(saved,k))iframeItemSelections[k]=saved[k];}var sels=document.querySelectorAll("[data-item-id]");for(var i=0;i<sels.length;i++){var elId=sels[i].getAttribute("data-item-id");if(Object.prototype.hasOwnProperty.call(saved,elId))sels[i].value=saved[elId];}rebuildItemSelSummary();}).catch(function(e){console.warn("GeneThrive: get-item-selections failed (using in-document defaults only)",e);});}catch(e){console.warn("GeneThrive: get-item-selections threw",e);}}';
-  html += 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",_gtRestoreSelections);}else{_gtRestoreSelections();}';
   html += '<\/script>';
 
   // ═══════════ PAGE 1 — THE DECISION PAGE ═══════════
@@ -16146,6 +16112,32 @@ function importIntakeJson(json) {
     _setIf("last-name", parts.join(" ") || "");
   } else unanswered.push("name");
 
+  // [NEW 14 Oct 2026 — CONTACT FIELDS FIX] Previously this function never wrote
+  // mobile/email/address, even when the intake record carried them — those
+  // fields always showed "not provided" in the Engine unless a practitioner
+  // typed them in by hand. The Client Health Profile Form now sends them
+  // under json.contact (see the form's toEngineIntakeV1() converter); if
+  // present, they're written straight into the required fields below. If a
+  // record has no `contact` block at all (older records, or the DOM-typed
+  // path), this is a no-op exactly as before — nothing is broken for anyone
+  // not using the new form.
+  if (json.contact && typeof json.contact === "object") {
+    if (!_setIf("mobile", json.contact.mobile)) unanswered.push("mobile");
+    if (!_setIf("email", json.contact.email)) unanswered.push("email");
+    var addr = json.contact.address || {};
+    if (!_setIf("addr-street", addr.street)) unanswered.push("addr_street");
+    if (!_setIf("addr-suburb", addr.suburb)) unanswered.push("addr_suburb");
+    if (!_setIf("addr-postcode", addr.postcode)) unanswered.push("addr_postcode");
+    var stateEl = document.getElementById("addr-state");
+    if (stateEl && addr.state) {
+      var stateMatch = null;
+      for (var si = 0; si < stateEl.options.length; si++) {
+        if (stateEl.options[si].value && stateEl.options[si].value.toUpperCase() === String(addr.state).trim().toUpperCase()) { stateMatch = stateEl.options[si].value; break; }
+      }
+      if (stateMatch) stateEl.value = stateMatch; else unanswered.push("addr_state");
+    } else unanswered.push("addr_state");
+  }
+
   if (!_setIf("dob", json.dob)) unanswered.push("dob");
   var sex = (json.sex || "").toLowerCase();
   if (sex === "male" || sex === "female") _setIf("sex", sex); else unanswered.push("sex");
@@ -16393,66 +16385,6 @@ async function onIntakeJsonFile(input) {
     if (st) st.textContent = "FAILED: " + e.message;
   }
 }
-
-// ---- PORTAL HANDOFF (merged in 29 Sep 2026 — see ENGINE_PATCH_PortalHandoff.md.
-// This was previously only applied to a SEPARATE, older copy of the Engine
-// (GeneThrive_Engine_v3.5.147_WITH_PortalHandoff.html), which meant Barbara's
-// Portal was pointing at a file that never had her later dose corrections or
-// the 28/29 Sep Accept/Reject persistence wiring — a real fork this merge
-// closes.) loadFromPortal() does exactly what onDnaFile()/onIntakeJsonFile()
-// do above, minus the "read a File the user picked" step -- it takes the two
-// JSON payloads directly (already fetched by the Portal from wherever it got
-// them) and runs them through the SAME importDnaExtract()/importIntakeJson()
-// functions the manual pickers use, so every downstream check (gene mapping,
-// coverage counting, identity cross-check) behaves identically either way.
-// ADDITIVE ONLY: onDnaFile, onIntakeJsonFile and the two manual upload boxes
-// are completely untouched and keep working exactly as they do today. This
-// is simply a second way to fill the same two payloads -- the clinical
-// pipeline downstream of window._ingestDna / window._ingestIntake does not
-// know or care which path was used.
-async function loadFromPortal(dnaJson, intakeJson, clientCode) {
-  var dnaStatus = document.getElementById("ingest-dna-status");
-  var intakeStatus = document.getElementById("ingest-intake-status");
-  var result = { ok: false, dnaCoverage: null, intakeReport: null, error: null };
-  try {
-    if (dnaStatus) dnaStatus.textContent = "Reading DNA record from Portal ...";
-    var cov = importDnaExtract(dnaJson);
-    if (dnaStatus) dnaStatus.textContent = "OK (via Portal) - " + (dnaJson.variants || []).length +
-      " rows read, " + cov.received + " matched to engine genes, " + cov.missing + " NOT TESTED.";
-    result.dnaCoverage = cov;
-
-    if (intakeStatus) intakeStatus.textContent = "Reading intake record from Portal ...";
-    var rep = importIntakeJson(intakeJson);
-    if (intakeStatus) intakeStatus.textContent = "OK (via Portal) - " + rep.answered + "/" + rep.total + " answered" +
-      (rep.unanswered.length ? ", " + rep.unanswered.length + " NOT ANSWERED" : "");
-    result.intakeReport = rep;
-
-    // The client code is normally typed by hand in Section 1; the Portal
-    // already knows which client Barbara picked, so fill it the same way
-    // importIntakeJson() fills first-name/last-name/dob above.
-    if (clientCode) _setIf("client-code", clientCode);
-
-    // Reflect the same "Loaded" visual state the manual pickers get from the
-    // SINGLE LOAD PATH script at the bottom of this file. The <input
-    // type=file> elements themselves are left untouched -- a script can never
-    // populate input.files for security reasons, and nothing downstream reads
-    // input.files anyway (only window._ingestDna / window._ingestIntake do).
-    var boxDna = document.getElementById("box-ingest-dna");
-    var boxIntake = document.getElementById("box-ingest-intake");
-    if (boxDna) boxDna.classList.add("loaded");
-    if (boxIntake) boxIntake.classList.add("loaded");
-    var hint = document.getElementById("ingest-both-hint");
-    if (hint) hint.style.display = "none";
-
-    renderIngestConfirmation();
-    result.ok = true;
-  } catch (e) {
-    result.error = e.message;
-    console.error("loadFromPortal failed (manual file upload is unaffected):", e);
-  }
-  return result;
-}
-
 function renderIngestConfirmation() {
   var box = document.getElementById("ingest-confirm");
   if (!box) return;
@@ -16837,65 +16769,6 @@ document.getElementById('version-banner').textContent =
   var b = document.getElementById('file-ingest-intake');
   if (a) a.addEventListener('change', refreshIngestState);
   if (b) b.addEventListener('change', refreshIngestState);
-})();
-</script>
-
-<!-- PORTAL HANDOFF BOOTSTRAP (merged in 29 Sep 2026 — see ENGINE_PATCH_PortalHandoff.md
-     for the full rationale/testing history. Runs only when opened with ?portal=1 AND a
-     matching one-time localStorage record is present — both conditions Barbara's normal
-     manual-upload session never creates, so this is inert for every existing regression
-     test and every manual session. Reuses the Engine's own existing practitionerLogin()
-     and #login-pin field — no new authentication path is introduced. -->
-<script>
-(function () {
-  var PORTAL_HANDOFF_KEY = 'gt_portal_handoff';
-  var PORTAL_HANDOFF_MAX_AGE_MS = 5 * 60 * 1000; // one-time token, 5-minute shelf life
-
-  function fromPortal() {
-    try {
-      var qs = new URLSearchParams(window.location.search);
-      if (qs.get('portal') !== '1') return;
-
-      var raw = window.localStorage.getItem(PORTAL_HANDOFF_KEY);
-      // Consume immediately (remove-then-use) so a duplicate/late load of this
-      // same tab, or a second tab racing to read it, can never replay it.
-      window.localStorage.removeItem(PORTAL_HANDOFF_KEY);
-      if (!raw) return; // ?portal=1 with no record: nothing to do, engine loads normally
-
-      var record = JSON.parse(raw);
-      if (!record || !record.ts || (Date.now() - record.ts) > PORTAL_HANDOFF_MAX_AGE_MS) {
-        console.warn('Portal handoff record missing or expired; ignoring. Barbara can still load both files manually below.');
-        return;
-      }
-
-      // Clean the URL so a manual refresh reloads a plain, un-flagged engine
-      // rather than trying (and failing, since the key is already gone) to
-      // process the handoff a second time.
-      try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) {}
-
-      // Step 2 — log in exactly as Barbara would, via the existing PIN field.
-      if (record.pin && !_sessionPractitioner) {
-        var pinInput = document.getElementById('login-pin');
-        if (pinInput) { pinInput.value = record.pin; practitionerLogin(); }
-      }
-      if (!_sessionPractitioner) {
-        console.warn('Portal handoff: PIN did not authenticate; DNA/intake NOT loaded. Barbara must log in manually.');
-        return;
-      }
-
-      // Step 3 — load both payloads the same way onDnaFile/onIntakeJsonFile do.
-      if (record.dna && record.intake) {
-        loadFromPortal(record.dna, record.intake, record.clientCode).then(function (r) {
-          if (!r.ok) console.error('Portal handoff: loadFromPortal reported an error:', r.error);
-        });
-      }
-    } catch (e) {
-      console.error('Portal handoff bootstrap failed (manual load is unaffected):', e);
-    }
-  }
-
-  if (document.readyState === 'complete' || document.readyState === 'interactive') fromPortal();
-  else document.addEventListener('DOMContentLoaded', fromPortal);
 })();
 </script>
 </body>
