@@ -8,13 +8,19 @@
  * WHAT IT DOES:
  *   1. Verifies Nutripath's session token
  *   2. Looks up order in Supabase by Client ID (order_ref)
- *   3. Saves DNA results to Supabase dna_results table
+ *   3. Saves DNA results to Supabase dna_results table:
+ *        result_data.pdf_base64    — raw PDF (for naturopath reference)
+ *        result_data.dna_extract   — genethrive.dna.v1 JSON (for engine)
+ *        result_data.lab_notes     — optional notes
  *   4. Stamps dna_results_received_at on order_sla + advances SLA stage
  *   5. Releases second Nutripath payment ($137.50) via Stripe
  *   6. Emails DNA results PDF to naturopath
  *   7. Emails results notification to GeneThrive ops
  *   8. Notifies client that results are ready
- *   9. Tags Shopify order: dna-results-received (non-fatal if Shopify not configured)
+ *   9. Tags Shopify order: dna-results-received (non-fatal)
+ *
+ * PRIVACY: result_data is stored in Supabase dna_results — Barbara-only RLS.
+ *          NEVER forwarded to Paul's dashboard or Shopify.
  *
  * ENVIRONMENT VARIABLES:
  *   PARTNER_TOKEN_SECRET
@@ -32,7 +38,7 @@ const nodemailer = require('nodemailer');
 const { shopifyFetch } = require('./_lib/shopify-token');
 const { advanceStage } = require('./sla-stage');
 
-// Inline token verification (mirrors partner-auth.js)
+// ── Token verification ────────────────────────────────────────────────────────
 function verifyToken(token) {
   try {
     const decoded = Buffer.from(token, 'base64').toString('utf8');
@@ -58,7 +64,7 @@ function createTransporter() {
   });
 }
 
-// ── Supabase REST helpers ────────────────────────────────────────────────────
+// ── Supabase REST helpers ─────────────────────────────────────────────────────
 async function supabasePatch(path, body) {
   const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1${path}`, {
     method: 'PATCH',
@@ -111,6 +117,7 @@ async function supabaseGet(table, column, value) {
   return rows[0] || null;
 }
 
+// ── Handler ───────────────────────────────────────────────────────────────────
 exports.handler = async function (event) {
 
   const corsHeaders = {
@@ -129,19 +136,29 @@ exports.handler = async function (event) {
     return { statusCode: 401, headers: corsHeaders, body: JSON.stringify({ error: 'Unauthorized' }) };
   }
 
-  // 2. Parse request — clientId + base64 PDF
-  let clientId, pdfBase64, notes;
+  // 2. Parse request body
+  //    Required: clientId, pdfBase64, dnaExtractJson
+  //    Optional: notes
+  let clientId, pdfBase64, dnaExtractJson, notes;
   try {
-    const body = JSON.parse(event.body);
-    clientId   = body.clientId?.trim();
-    pdfBase64  = body.pdfBase64;
-    notes      = body.notes || '';
+    const body     = JSON.parse(event.body);
+    clientId       = body.clientId?.trim();
+    pdfBase64      = body.pdfBase64;       // base64 PDF (reference copy for naturopath)
+    dnaExtractJson = body.dnaExtractJson;  // genethrive.dna.v1 object (for engine)
+    notes          = body.notes || '';
   } catch {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
 
   if (!clientId || !pdfBase64) {
-    return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing clientId or PDF' }) };
+    return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing clientId or pdfBase64' }) };
+  }
+  if (!dnaExtractJson || dnaExtractJson.schema !== 'genethrive.dna.v1') {
+    return {
+      statusCode: 400,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: 'Missing or invalid dnaExtractJson — must be a genethrive.dna.v1 object' }),
+    };
   }
 
   // 3. Look up order in Supabase
@@ -167,8 +184,8 @@ exports.handler = async function (event) {
   const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
   // 4. Save DNA results to Supabase dna_results table
+  //    result_data stores BOTH the reference PDF and the engine-ready extract.
   //    Upsert keyed on client_id — safe to retry.
-  //    result_data stores the raw PDF + lab notes as JSONB.
   //    Barbara-only access enforced via RLS; service_role key bypasses for write.
   try {
     await supabaseUpsert('dna_results', {
@@ -176,13 +193,14 @@ exports.handler = async function (event) {
       received_at:        now,
       sequencing_partner: 'NutriPath US Lab',
       result_data: {
-        pdf_base64:   pdfBase64,
+        pdf_base64:   pdfBase64,        // stored for naturopath email attachment / reference
+        dna_extract:  dnaExtractJson,   // genethrive.dna.v1 — what barbara-portal sends to engine
         lab_notes:    notes,
         submitted_by: 'nutripath',
         submitted_at: now,
       },
     });
-    console.log(`GeneThrive: DNA results saved to Supabase for ${clientId}`);
+    console.log(`GeneThrive: DNA results saved to Supabase for ${clientId} (${dnaExtractJson.variants?.length || 0} variants)`);
   } catch (err) {
     console.error('GeneThrive: Supabase dna_results save failed —', err.message);
     return {
@@ -192,7 +210,7 @@ exports.handler = async function (event) {
     };
   }
 
-  // 5. Stamp dna_results_received_at on order_sla + advance SLA stage to 'sequencing'
+  // 5. Stamp dna_results_received_at on order_sla + advance SLA stage
   try {
     await supabasePatch(
       `/order_sla?client_id=eq.${encodeURIComponent(clientId)}`,
@@ -286,6 +304,10 @@ exports.handler = async function (event) {
                   <td style="padding:8px 0">${orderDate}</td>
                 </tr>
                 <tr style="border-bottom:1px solid #ede8df">
+                  <td style="padding:8px 0;color:#7a7a74">Variants received</td>
+                  <td style="padding:8px 0">${dnaExtractJson.variants?.length || 0} variants</td>
+                </tr>
+                <tr style="border-bottom:1px solid #ede8df">
                   <td style="padding:8px 0;color:#7a7a74">Nutripath 2nd payment</td>
                   <td style="padding:8px 0;color:#166534;font-weight:500">$137.50 released</td>
                 </tr>
@@ -362,9 +384,10 @@ exports.handler = async function (event) {
     statusCode: 200,
     headers: corsHeaders,
     body: JSON.stringify({
-      success:  true,
+      success:       true,
       clientId,
-      message:  'DNA results submitted. Naturopath notified. $137.50 released to Nutripath.',
+      variantCount:  dnaExtractJson.variants?.length || 0,
+      message:       'DNA results submitted. Naturopath notified. $137.50 released to Nutripath.',
     }),
   };
 };

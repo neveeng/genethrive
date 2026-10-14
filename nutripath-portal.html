@@ -12,6 +12,7 @@
       --border: #D6CFC3; --radius: 10px; --shadow: 0 2px 16px rgba(28,28,26,0.07);
       --green: #166534; --green-bg: #F0FDF4; --green-bdr: #BBF7D0;
       --red: #B91C1C; --red-bg: #FEF2F2; --red-bdr: #FECACA;
+      --amber: #92400E; --amber-bg: #FFFBEB; --amber-bdr: #FDE68A;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
@@ -50,32 +51,48 @@
     .gt-field .hint { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
 
     /* File upload */
-    .gt-upload { border: 2px dashed var(--border); border-radius: var(--radius); padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--cream); }
+    .gt-upload { border: 2px dashed var(--border); border-radius: var(--radius); padding: 22px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--cream); }
     .gt-upload:hover, .gt-upload.dragover { border-color: var(--sage); background: var(--sage-pale); }
+    .gt-upload.ready { border-color: var(--sage); border-style: solid; background: var(--green-bg); }
     .gt-upload input { display: none; }
-    .gt-upload-icon { color: var(--ink-soft); margin-bottom: 10px; }
-    .gt-upload-text { font-size: 14px; color: var(--ink-mid); margin-bottom: 4px; }
+    .gt-upload-icon { color: var(--ink-soft); margin-bottom: 8px; }
+    .gt-upload-text { font-size: 14px; color: var(--ink-mid); margin-bottom: 3px; }
     .gt-upload-hint { font-size: 12px; color: var(--ink-soft); }
-    .gt-upload-selected { margin-top: 12px; font-size: 13px; color: var(--sage); font-weight: 500; }
+    .gt-upload-selected { margin-top: 10px; font-size: 13px; color: var(--green); font-weight: 500; }
+    .gt-upload.ready .gt-upload-selected { color: var(--green); }
+
+    /* Two-upload row */
+    .upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .upload-row { grid-template-columns: 1fr; } }
+
+    .upload-label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--ink-mid); margin-bottom: 6px; }
+    .upload-badge { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 10px; }
+    .badge-required { background: #FEE2E2; color: #B91C1C; }
+    .badge-optional { background: var(--warm); color: var(--ink-soft); }
+
+    /* Status indicator */
+    .upload-status { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 8px; min-height: 20px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.green { background: var(--green); }
+    .status-dot.amber { background: #D97706; }
+    .status-dot.grey  { background: #CBD5E1; }
 
     /* Buttons */
     .gt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
     .gt-btn-primary { background: var(--sage); color: #fff; width: 100%; }
     .gt-btn-primary:hover:not(:disabled) { background: var(--sage-lt); }
     .gt-btn-primary:disabled { opacity: 0.6; pointer-events: none; }
-    .gt-btn-primary.loading::after { content: ''; display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 6px; }
     .login-btn { width: 100%; padding: 12px; background: var(--ink); color: var(--cream); border: none; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
     .login-btn:hover { background: var(--ink-mid); }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Alerts */
     .gt-alert { display: none; padding: 12px 16px; border-radius: var(--radius); font-size: 13px; margin: 14px 0; line-height: 1.5; }
     .gt-alert.visible { display: block; }
     .gt-alert.success { background: var(--green-bg); border: 1px solid var(--green-bdr); color: var(--green); }
-    .gt-alert.error { background: var(--red-bg); border: 1px solid var(--red-bdr); color: var(--red); }
+    .gt-alert.error   { background: var(--red-bg);   border: 1px solid var(--red-bdr);   color: var(--red); }
+    .gt-alert.info    { background: var(--amber-bg);  border: 1px solid var(--amber-bdr);  color: var(--amber); }
 
-    /* Lookup result */
+    /* Order info */
     .gt-order-info { display: none; background: var(--sage-pale); border: 1px solid #c5d9c0; border-radius: var(--radius); padding: 14px 16px; margin-top: 12px; font-size: 13px; }
     .gt-order-info.visible { display: block; }
     .gt-order-row { display: flex; gap: 8px; margin-bottom: 4px; }
@@ -87,6 +104,10 @@
     .gt-log-item:last-child { border-bottom: none; }
     .gt-log-empty { font-size: 13px; color: var(--ink-soft); padding: 8px 0; }
     .gt-tag { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: var(--green-bg); color: var(--green); }
+
+    /* Loading spinner on button */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinning::after { content: ''; display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-left: 8px; vertical-align: middle; }
   </style>
 </head>
 <body>
@@ -98,8 +119,8 @@
     <div class="login-title">Nutripath Portal</div>
     <div class="login-sub">Submit DNA results and manage payments</div>
     <div class="gt-alert error" id="login-error"></div>
-    <div class="gt-field"><label>Email</label><input type="email" id="login-email" placeholder="lab@nutripath.com.au"></div>
-    <div class="gt-field"><label>Password</label><input type="password" id="login-password"></div>
+    <div class="gt-field"><label>Email</label><input type="email" id="login-email" placeholder="lab@nutripath.com.au" autocomplete="username"></div>
+    <div class="gt-field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password"></div>
     <button class="login-btn" onclick="login()">Sign in</button>
   </div>
 </div>
@@ -125,27 +146,73 @@
       <div class="gt-field">
         <label>Client ID</label>
         <div style="display:flex;gap:10px">
-          <input type="text" id="client-id" placeholder="e.g. GT-1042-a3f9c2" style="flex:1" oninput="clearOrderInfo()">
-          <button class="gt-btn" style="background:var(--warm);border:1.5px solid var(--border);color:var(--ink-mid);white-space:nowrap" onclick="lookupOrder()">Look up</button>
+          <input type="text" id="client-id" placeholder="e.g. GT-2026-0001" style="flex:1" oninput="clearOrderInfo()">
+          <button class="gt-btn" style="background:var(--warm);border:1.5px solid var(--border);color:var(--ink-mid);white-space:nowrap;padding:10px 16px" onclick="lookupOrder()">Look up</button>
         </div>
         <div class="gt-order-info" id="order-info">
-          <div class="gt-order-row"><span class="gt-order-key">Order #</span><span id="info-order"></span></div>
-          <div class="gt-order-row"><span class="gt-order-key">Client email</span><span id="info-email"></span></div>
+          <div class="gt-order-row"><span class="gt-order-key">Client ID</span><span id="info-order"></span></div>
           <div class="gt-order-row"><span class="gt-order-key">Status</span><span id="info-status"></span></div>
         </div>
       </div>
 
-      <!-- PDF upload -->
-      <div class="gt-field">
-        <label>DNA Results PDF</label>
-        <div class="gt-upload" id="upload-zone" onclick="document.getElementById('pdf-input').click()" ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="this.classList.remove('dragover')">
-          <input type="file" id="pdf-input" accept=".pdf" onchange="handleFileSelect(this.files[0])">
-          <div class="gt-upload-icon">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 4v16M8 12l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 24h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <!-- Two-upload section -->
+      <div class="gt-field" style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:500;color:var(--ink-mid);margin-bottom:12px">File uploads</div>
+
+        <div class="upload-row">
+
+          <!-- PDF upload (required) -->
+          <div>
+            <div class="upload-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              DNA Results PDF
+              <span class="upload-badge badge-required">Required</span>
+            </div>
+            <div class="gt-upload" id="pdf-zone"
+                 onclick="document.getElementById('pdf-input').click()"
+                 ondragover="handleDragOver(event,'pdf-zone')"
+                 ondrop="handleDrop(event,'pdf','pdf-zone')"
+                 ondragleave="this.classList.remove('dragover')">
+              <input type="file" id="pdf-input" accept=".pdf" onchange="handleFileSelect(this.files[0],'pdf','pdf-zone','pdf-status')">
+              <div class="gt-upload-icon">
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><path d="M16 4v16M8 12l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 24h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <div class="gt-upload-text" style="font-size:13px">Click or drag PDF</div>
+            </div>
+            <div class="upload-status" id="pdf-status">
+              <span class="status-dot grey"></span>
+              <span style="color:var(--ink-soft)">No file selected</span>
+            </div>
           </div>
-          <div class="gt-upload-text">Click to upload or drag and drop</div>
-          <div class="gt-upload-hint">PDF files only</div>
-          <div class="gt-upload-selected" id="file-name"></div>
+
+          <!-- T2 JSON extract (required for engine) -->
+          <div>
+            <div class="upload-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              T2 JSON Extract
+              <span class="upload-badge badge-required">Required</span>
+            </div>
+            <div class="gt-upload" id="json-zone"
+                 onclick="document.getElementById('json-input').click()"
+                 ondragover="handleDragOver(event,'json-zone')"
+                 ondrop="handleDrop(event,'json','json-zone','json-status')"
+                 ondragleave="this.classList.remove('dragover')">
+              <input type="file" id="json-input" accept=".json" onchange="handleFileSelect(this.files[0],'json','json-zone','json-status')">
+              <div class="gt-upload-icon">
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><path d="M16 4v16M8 12l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 24h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </div>
+              <div class="gt-upload-text" style="font-size:13px">Click or drag JSON</div>
+            </div>
+            <div class="upload-status" id="json-status">
+              <span class="status-dot grey"></span>
+              <span style="color:var(--ink-soft)">No file selected</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="gt-alert info" id="json-help" style="margin-top:12px;display:block">
+          <strong>T2 JSON Extract:</strong> Export this from the NutriPath results portal as the "T2 Digital Export" or "JSON download". It contains the variant data (rsid, zygosity, genotype) that feeds the GeneThrive engine. The PDF alone is not machine-readable.
         </div>
       </div>
 
@@ -170,11 +237,12 @@
 
 <script>
   const NETLIFY_URL = 'https://genethrive.netlify.app';
-  let _token     = null;
-  let _pdfBase64 = null;
-  const log      = [];
+  let _token      = null;
+  let _pdfBase64  = null;   // raw base64 of PDF (no data: prefix)
+  let _dnaExtract = null;   // parsed genethrive.dna.v1 JSON object
+  const log       = [];
 
-  // ── Auth ─────────────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   async function login() {
     const email    = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
@@ -215,9 +283,11 @@
     showPortal();
   }
 
-  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  document.getElementById('login-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
 
-  // ── Order lookup ──────────────────────────────────────────────────────────
+  // ── Order lookup ──────────────────────────────────────────────────────────────
   async function lookupOrder() {
     const clientId = document.getElementById('client-id').value.trim();
     if (!clientId) return;
@@ -225,8 +295,7 @@
       const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/lookup-order?clientId=${encodeURIComponent(clientId)}`);
       const data = await res.json();
       if (!res.ok || !data.order) throw new Error(data.error || 'Not found');
-      document.getElementById('info-order').textContent  = data.order.clientId || data.order.order_number || clientId;
-      document.getElementById('info-email').textContent  = data.order.email;
+      document.getElementById('info-order').textContent  = data.order.clientId || clientId;
       document.getElementById('info-status').textContent = '✓ Ready for submission';
       document.getElementById('order-info').classList.add('visible');
     } catch (err) {
@@ -234,45 +303,135 @@
     }
   }
 
-  function clearOrderInfo() { document.getElementById('order-info').classList.remove('visible'); }
-
-  // ── File handling ─────────────────────────────────────────────────────────
-  function handleFileSelect(file) {
-    if (!file || file.type !== 'application/pdf') { showError('Please select a PDF file.'); return; }
-    const reader = new FileReader();
-    reader.onload = e => {
-      _pdfBase64 = e.target.result.split(',')[1];
-      document.getElementById('file-name').textContent = `Selected: ${file.name}`;
-    };
-    reader.readAsDataURL(file);
+  function clearOrderInfo() {
+    document.getElementById('order-info').classList.remove('visible');
   }
 
-  function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
-  function handleDrop(e) {
-    e.preventDefault(); e.currentTarget.classList.remove('dragover');
+  // ── File handling ─────────────────────────────────────────────────────────────
+  function handleDragOver(e, zoneId) {
+    e.preventDefault();
+    document.getElementById(zoneId).classList.add('dragover');
+  }
+
+  function handleDrop(e, type, zoneId, statusId) {
+    e.preventDefault();
+    document.getElementById(zoneId).classList.remove('dragover');
     const file = e.dataTransfer.files[0];
-    handleFileSelect(file);
+    if (file) handleFileSelect(file, type, zoneId, statusId);
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  function setStatus(statusId, state, text) {
+    const el  = document.getElementById(statusId);
+    const dot = el.querySelector('.status-dot');
+    const txt = el.querySelector('span:last-child');
+    dot.className = 'status-dot ' + state;
+    txt.style.color = state === 'green' ? 'var(--green)' : state === 'amber' ? '#92400E' : 'var(--ink-soft)';
+    txt.textContent = text;
+  }
+
+  function handleFileSelect(file, type, zoneId, statusId) {
+    if (!file) return;
+
+    if (type === 'pdf') {
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        showError('Please select a PDF file for the DNA results.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        _pdfBase64 = e.target.result.split(',')[1];
+        document.getElementById(zoneId).classList.add('ready');
+        setStatus(statusId, 'green', file.name);
+      };
+      reader.readAsDataURL(file);
+
+    } else if (type === 'json') {
+      if (!file.name.toLowerCase().endsWith('.json')) {
+        showError('Please select a JSON file for the T2 extract.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+
+          // Validate it looks like a genethrive.dna.v1 extract
+          if (parsed.schema !== 'genethrive.dna.v1') {
+            // Wrap it if it has variants but wrong/missing schema
+            // (allows NutriPath's own export format if it has rsid/zygosity/genotype)
+            if (Array.isArray(parsed.variants) || Array.isArray(parsed.results) || Array.isArray(parsed.snps)) {
+              const variants = parsed.variants || parsed.results || parsed.snps || [];
+              _dnaExtract = {
+                schema:     'genethrive.dna.v1',
+                clientId:   document.getElementById('client-id').value.trim() || null,
+                name:       parsed.name || parsed.patientName || null,
+                dob:        parsed.dob  || parsed.dateOfBirth || null,
+                barcode:    parsed.barcode || parsed.sampleId || null,
+                reportDate: parsed.reportDate || parsed.date || null,
+                lab:        'NutriPath',
+                variants:   variants.map(v => ({
+                  rsid:      v.rsid || v.snp || v.id || '',
+                  zygosity:  v.zygosity || v.type || '',
+                  genotype:  v.genotype || v.alleles || v.result || '',
+                })),
+                _errors: [],
+              };
+            } else {
+              showError('JSON file does not appear to be a valid T2 extract (no variants/results/snps array found). Please check the file.');
+              return;
+            }
+          } else {
+            // Already in correct format
+            _dnaExtract = parsed;
+            // Stamp the clientId if not set
+            if (!_dnaExtract.clientId) {
+              _dnaExtract.clientId = document.getElementById('client-id').value.trim() || null;
+            }
+            if (!_dnaExtract.lab) _dnaExtract.lab = 'NutriPath';
+          }
+
+          const variantCount = _dnaExtract.variants ? _dnaExtract.variants.length : 0;
+          document.getElementById(zoneId).classList.add('ready');
+          setStatus(statusId, 'green', `${file.name} — ${variantCount} variants`);
+          document.getElementById('json-help').style.display = 'none';
+
+        } catch (parseErr) {
+          showError('Could not parse JSON file: ' + parseErr.message);
+          _dnaExtract = null;
+        }
+      };
+      reader.readAsText(file);
+    }
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────────
   async function submitResults() {
     const clientId = document.getElementById('client-id').value.trim();
     const notes    = document.getElementById('notes').value.trim();
     const btn      = document.getElementById('submit-btn');
 
-    if (!clientId)   { showError('Please enter a Client ID.'); return; }
-    if (!_pdfBase64) { showError('Please upload the DNA results PDF.'); return; }
+    if (!clientId)    { showError('Please enter a Client ID.'); return; }
+    if (!_pdfBase64)  { showError('Please upload the DNA results PDF.'); return; }
+    if (!_dnaExtract) { showError('Please upload the T2 JSON extract. This is needed for the GeneThrive engine to process variant data.'); return; }
 
-    btn.classList.add('loading');
+    // Stamp clientId into extract at submit time (in case it changed)
+    _dnaExtract.clientId = clientId;
+
+    btn.classList.add('spinning');
     btn.disabled    = true;
-    btn.textContent = 'Submitting...';
+    btn.textContent = 'Submitting…';
     clearAlerts();
 
     try {
       const res  = await fetch(`${NETLIFY_URL}/.netlify/functions/nutripath-submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Partner-Token': _token },
-        body: JSON.stringify({ clientId, pdfBase64: _pdfBase64, notes }),
+        body: JSON.stringify({
+          clientId,
+          pdfBase64:      _pdfBase64,
+          dnaExtractJson: _dnaExtract,   // genethrive.dna.v1 object
+          notes,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed');
@@ -281,23 +440,29 @@
       addLog(clientId);
 
       // Reset form
-      document.getElementById('client-id').value = '';
-      document.getElementById('notes').value     = '';
-      document.getElementById('file-name').textContent = '';
+      document.getElementById('client-id').value  = '';
+      document.getElementById('notes').value      = '';
       document.getElementById('pdf-input').value  = '';
-      _pdfBase64 = null;
+      document.getElementById('json-input').value = '';
+      document.getElementById('pdf-zone').classList.remove('ready');
+      document.getElementById('json-zone').classList.remove('ready');
+      setStatus('pdf-status',  'grey', 'No file selected');
+      setStatus('json-status', 'grey', 'No file selected');
+      document.getElementById('json-help').style.display = 'block';
+      _pdfBase64  = null;
+      _dnaExtract = null;
       clearOrderInfo();
 
     } catch (err) {
       showError(err.message);
     } finally {
-      btn.classList.remove('loading');
+      btn.classList.remove('spinning');
       btn.disabled    = false;
       btn.textContent = 'Submit results & release payment';
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────────
   function addLog(clientId) {
     log.unshift({ clientId, time: new Date() });
     const el = document.getElementById('submission-log');
@@ -311,16 +476,19 @@
 
   function showSuccess(msg) {
     const el = document.getElementById('alert-success');
-    el.textContent = msg; el.classList.add('visible');
+    el.textContent = msg;
+    el.classList.add('visible');
     document.getElementById('alert-error').classList.remove('visible');
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    setTimeout(() => el.classList.remove('visible'), 10000);
+    setTimeout(() => el.classList.remove('visible'), 12000);
   }
 
   function showError(msg) {
     const el = document.getElementById('alert-error');
-    el.textContent = msg; el.classList.add('visible');
+    el.textContent = msg;
+    el.classList.add('visible');
     document.getElementById('alert-success').classList.remove('visible');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function clearAlerts() {
