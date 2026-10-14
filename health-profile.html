@@ -94,6 +94,7 @@ textarea:focus{outline:none;border-color:#1D9E75;}
 </head>
 <body>
 
+<div style="position:fixed;bottom:2px;right:6px;font-size:10px;color:#aaa;z-index:9999;pointer-events:none;">GeneThrive Client Health Profile — v2.0 — 14 Oct 2026</div>
 <div class="progress-wrap">
   <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
   <div class="progress-label" id="progressLabel">Step 1 of 9 — About you</div>
@@ -107,6 +108,7 @@ textarea:focus{outline:none;border-color:#1D9E75;}
   <div class="hero-row">
     <div class="hero-badge">⏱ 6–8 minutes</div>
     <div class="hero-badge">🔒 Shared only with your naturopath</div>
+    <div class="hero-badge">v2.0 · 14 Oct 2026</div>
   </div>
 </div>
 
@@ -1212,10 +1214,93 @@ function _intakeFilename(record){
   var d=new Date(), p=function(n){return String(n).padStart(2,'0');};
   return 'genethrive_intake_'+slug+'_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'.json';
 }
-function downloadRecordAsJson(record){
-  var blob=new Blob([JSON.stringify(record,null,2)],{type:'application/json'});
+debugger;
+// ===========================================================================
+// toEngineIntakeV1(wizardRecord) — added in v2.0 (14 Oct 2026).
+// Identical logic to the server-side converter
+// (backend_functions/wizard-to-engine-intake.js in the 28 Sep handover
+// package) — kept in sync deliberately so the on-device download fallback
+// below produces the EXACT same "genethrive.intake.v1" shape the Engine's
+// importIntakeJson() requires, instead of the wizard's own raw internal
+// record shape (which has no "schema" tag and was being silently rejected).
+// ===========================================================================
+function _ynFromBool(b){ return b === true ? 'yes' : 'no'; }
+function _dietCodeToPhrases(code){
+  if(code==='omnivore') return ['meat and fish'];
+  if(code==='vegetarian') return ['no meat or fish'];
+  if(code==='vegan') return ['vegan'];
+  return [];
+}
+function _pregSubStateToItems(subState){
+  if(subState==='pregnant') return ['Pregnant now'];
+  if(subState==='breastfeeding') return ['Breastfeeding'];
+  if(subState==='planning') return ['Planning pregnancy in the next 12 months'];
+  return [];
+}
+function toEngineIntakeV1(wizardRecord){
+  var rec = wizardRecord || {};
+  var identity = rec.identity || {};
+  var demographics = rec.demographics || {};
+  var intake = rec.intake || {};
+  var additional = rec.additional || {};
+  var sleepIn = additional.sleep || {};
+  var lifestyle = additional.lifestyle || {};
+  var reportedSymptoms = additional.reportedSymptoms || {};
+  var activeSymptoms = Array.isArray(intake.activeSymptoms) ? intake.activeSymptoms : [];
+  var hasSymptom = function(code){ return activeSymptoms.indexOf(code) !== -1; };
+  var medications = Array.isArray(intake.medications) ? intake.medications : [];
+  var conditions = Array.isArray(intake.conditions) ? intake.conditions : [];
+  var bloodThinners = Array.isArray(additional.bloodThinners) ? additional.bloodThinners : [];
+  var name = [identity.firstName, identity.lastName].filter(Boolean).join(' ').trim() || null;
+  var pregnancyIn = intake.pregnancy || {};
+  var pregAnswer = pregnancyIn.status === 'yes' ? 'yes' : (pregnancyIn.status === 'no' ? 'no' : null);
+  var mkSleepEntry = function(e){ return { answer: (e && e.answer) || null, freq: (e && e.freq) || null }; };
+  var otherText = additional.otherNotes || null;
+  return {
+    schema: 'genethrive.intake.v1',
+    name: name,
+    dob: demographics.dob || null,
+    sex: demographics.sex || null,
+    weight_kg: (demographics.weightKg === undefined || demographics.weightKg === null) ? null : demographics.weightKg,
+    pregnancy: { answer: pregAnswer, items: _pregSubStateToItems(pregnancyIn.subState) },
+    shellfish: { answer: _ynFromBool(intake.shellfishAllergy) },
+    gastric_surgery: { answer: _ynFromBool(intake.bariatricIbd) },
+    meds: { answer: medications.length > 0 ? 'yes' : 'no', items: medications, dosing: additional.medicationsDosingNotes || null },
+    cond: { answer: conditions.length > 0 ? 'yes' : 'no', items: conditions },
+    blood: { answer: bloodThinners.length > 0 ? 'yes' : 'no', items: bloodThinners },
+    diet: _dietCodeToPhrases(intake.diet),
+    oily_fish_freq: intake.oilyFish || null,
+    sleep: {
+      lies_awake: mkSleepEntry(sleepIn.liesAwake),
+      wakes_night: mkSleepEntry(sleepIn.wakesNight),
+      wakes_early: mkSleepEntry(sleepIn.wakesEarly),
+      restless_legs: mkSleepEntry(sleepIn.restlessLegs),
+      duration: sleepIn.durationOfIssues || null
+    },
+    anxiety: { answer: hasSymptom('anxiety') ? 'yes' : 'no' },
+    headaches: { answer: hasSymptom('headache') ? 'yes' : 'no', freq: null },
+    nausea: { answer: hasSymptom('nausea') ? 'yes' : 'no' },
+    palpitations: { answer: hasSymptom('palpitations') ? 'yes' : 'no' },
+    cognition: { answer: _ynFromBool(reportedSymptoms.memoryOrFocusIssues), freq: null },
+    energy: { answer: _ynFromBool(reportedSymptoms.lowEnergyOrFatigue) },
+    smokes: { answer: lifestyle.smokes === 'yes' ? 'yes' : (lifestyle.smokes === 'no' ? 'no' : null) },
+    other: { answer: otherText ? 'yes' : 'no', text: otherText },
+    exercise_freq: lifestyle.exerciseFreq || null,
+    alcohol_per_week: lifestyle.alcoholPerWeek || null,
+    additional: additional,
+    clientId: rec.clientId || null,
+    urgentFlags: rec.urgentFlags || [],
+    requiresImmediateReview: !!rec.requiresImmediateReview,
+    completedAt: rec.completedAt || null
+  };
+}
+
+function downloadRecordAsJson(wizardRecord){
+  debugger;
+  var engineRecord = toEngineIntakeV1(wizardRecord);
+  var blob=new Blob([JSON.stringify(engineRecord,null,2)],{type:'application/json'});
   var url=URL.createObjectURL(blob);
-  var a=document.createElement('a'); a.href=url; a.download=_intakeFilename(record);
+  var a=document.createElement('a'); a.href=url; a.download=_intakeFilename(wizardRecord);
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); },1000);
 }
