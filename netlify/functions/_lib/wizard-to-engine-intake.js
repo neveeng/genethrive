@@ -209,6 +209,17 @@ function toEngineIntakeV1(wizardRecord) {
     exercise_freq: lifestyle.exerciseFreq || null,
     alcohol_per_week: lifestyle.alcoholPerWeek || null,
 
+    contact: {
+      mobile: identity.mobile || null,
+      email: identity.email || null,
+      address: {
+        street: (identity.address && identity.address.street) || null,
+        suburb: (identity.address && identity.address.suburb) || null,
+        state: (identity.address && identity.address.state) || null,
+        postcode: (identity.address && identity.address.postcode) || null
+      }
+    },
+
     // Passed through unchanged for anything downstream that may one day read
     // it directly (see the engine-side limitation note above), and for audit
     // visibility. importIntakeJson() ignores unknown top-level keys.
