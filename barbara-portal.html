@@ -303,8 +303,9 @@ async function openInEngine(clientId, name) {
     const fullRes = await fetch(API_BASE + "/.netlify/functions/get-client-full-record?clientId=" + encodeURIComponent(clientId), { headers: authHeaders() });
     if (!fullRes.ok) throw new Error("client record not available from server (status " + fullRes.status + ")");
     const full = await fullRes.json();
-    if (!full.dnaResults || !full.healthProfile) throw new Error("one or both records not available for this client");
-    dna = full.dnaResults;
+    if (!full.healthProfile) throw new Error("Health profile not yet submitted for this client");
+    if (!full.dnaResults)   throw new Error("DNA extract not yet received for this client — NutriPath must submit their variant data file before this client can be opened in the engine");
+    dna    = full.dnaResults;
     intake = full.healthProfile;
   } catch (e) {
     log("FAILED to fetch this client's records: " + e.message);

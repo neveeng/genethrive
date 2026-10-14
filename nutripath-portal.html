@@ -185,11 +185,11 @@
             </div>
           </div>
 
-          <!-- T2 JSON extract (required for engine) -->
+          <!-- T2 JSON extract (required) -->
           <div>
             <div class="upload-label">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              T2 JSON Extract
+              Variant Data File
               <span class="upload-badge badge-required">Required</span>
             </div>
             <div class="gt-upload" id="json-zone"
@@ -197,11 +197,11 @@
                  ondragover="handleDragOver(event,'json-zone')"
                  ondrop="handleDrop(event,'json','json-zone','json-status')"
                  ondragleave="this.classList.remove('dragover')">
-              <input type="file" id="json-input" accept=".json" onchange="handleFileSelect(this.files[0],'json','json-zone','json-status')">
+              <input type="file" id="json-input" accept=".json,.csv,.vcf,.txt" onchange="handleFileSelect(this.files[0],'json','json-zone','json-status')">
               <div class="gt-upload-icon">
                 <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><path d="M16 4v16M8 12l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 24h24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
               </div>
-              <div class="gt-upload-text" style="font-size:13px">Click or drag JSON</div>
+              <div class="gt-upload-text" style="font-size:13px">Click or drag JSON / CSV / VCF</div>
             </div>
             <div class="upload-status" id="json-status">
               <span class="status-dot grey"></span>
@@ -212,7 +212,7 @@
         </div>
 
         <div class="gt-alert info" id="json-help" style="margin-top:12px;display:block">
-          <strong>T2 JSON Extract:</strong> Export this from the NutriPath results portal as the "T2 Digital Export" or "JSON download". It contains the variant data (rsid, zygosity, genotype) that feeds the GeneThrive engine. The PDF alone is not machine-readable.
+          <strong>How to get this file from NutriPath:</strong> Log in to the NutriPath client portal → find the completed report → look for <em>Download / Export</em> → select <strong>Raw Data</strong>, <strong>JSON</strong>, <strong>CSV</strong>, or <strong>VCF</strong> format. The file must contain rsid, genotype, and zygosity columns. Contact your NutriPath account manager if you cannot find the export option.
         </div>
       </div>
 
@@ -346,57 +346,147 @@
       reader.readAsDataURL(file);
 
     } else if (type === 'json') {
-      if (!file.name.toLowerCase().endsWith('.json')) {
-        showError('Please select a JSON file for the T2 extract.');
+      const fname = file.name.toLowerCase();
+      const isJson = fname.endsWith('.json');
+      const isCsv  = fname.endsWith('.csv') || fname.endsWith('.txt');
+      const isVcf  = fname.endsWith('.vcf');
+
+      if (!isJson && !isCsv && !isVcf) {
+        showError('Please select a JSON, CSV, or VCF file.');
         return;
       }
+
       const reader = new FileReader();
       reader.onload = e => {
         try {
-          const parsed = JSON.parse(e.target.result);
+          const text = e.target.result;
+          let variants = [];
+          let metaName = null, metaDob = null, metaBarcode = null, metaDate = null;
 
-          // Validate it looks like a genethrive.dna.v1 extract
-          if (parsed.schema !== 'genethrive.dna.v1') {
-            // Wrap it if it has variants but wrong/missing schema
-            // (allows NutriPath's own export format if it has rsid/zygosity/genotype)
-            if (Array.isArray(parsed.variants) || Array.isArray(parsed.results) || Array.isArray(parsed.snps)) {
-              const variants = parsed.variants || parsed.results || parsed.snps || [];
-              _dnaExtract = {
-                schema:     'genethrive.dna.v1',
-                clientId:   document.getElementById('client-id').value.trim() || null,
-                name:       parsed.name || parsed.patientName || null,
-                dob:        parsed.dob  || parsed.dateOfBirth || null,
-                barcode:    parsed.barcode || parsed.sampleId || null,
-                reportDate: parsed.reportDate || parsed.date || null,
-                lab:        'NutriPath',
-                variants:   variants.map(v => ({
-                  rsid:      v.rsid || v.snp || v.id || '',
-                  zygosity:  v.zygosity || v.type || '',
-                  genotype:  v.genotype || v.alleles || v.result || '',
-                })),
-                _errors: [],
-              };
+          if (isJson) {
+            // ── JSON ─────────────────────────────────────────────────────────
+            const parsed = JSON.parse(text);
+            if (parsed.schema === 'genethrive.dna.v1') {
+              // Already correct format — use as-is
+              _dnaExtract = parsed;
+              if (!_dnaExtract.clientId) _dnaExtract.clientId = document.getElementById('client-id').value.trim() || null;
+              if (!_dnaExtract.lab) _dnaExtract.lab = 'NutriPath';
             } else {
-              showError('JSON file does not appear to be a valid T2 extract (no variants/results/snps array found). Please check the file.');
-              return;
+              // NutriPath JSON export — normalise
+              metaName    = parsed.name    || parsed.patientName    || parsed.patient_name || null;
+              metaDob     = parsed.dob     || parsed.dateOfBirth    || parsed.date_of_birth || null;
+              metaBarcode = parsed.barcode || parsed.sampleId       || parsed.sample_id    || null;
+              metaDate    = parsed.reportDate || parsed.date        || null;
+              const raw   = parsed.variants || parsed.results || parsed.snps || parsed.data || [];
+              if (!Array.isArray(raw) || raw.length === 0) {
+                showError('JSON file has no variant rows (looked for variants / results / snps / data arrays). Please check the export.');
+                return;
+              }
+              variants = raw.map(v => ({
+                rsid:     (v.rsid || v.snp || v.snpId || v.snp_id || v.id || '').trim(),
+                zygosity: (v.zygosity || v.type || v.call_type || '').trim().toLowerCase(),
+                genotype: (v.genotype || v.alleles || v.result || v.call || '').trim().toUpperCase(),
+              })).filter(v => v.rsid);
             }
-          } else {
-            // Already in correct format
-            _dnaExtract = parsed;
-            // Stamp the clientId if not set
-            if (!_dnaExtract.clientId) {
-              _dnaExtract.clientId = document.getElementById('client-id').value.trim() || null;
+
+          } else if (isCsv) {
+            // ── CSV ──────────────────────────────────────────────────────────
+            // Handles: rsid,genotype,zygosity  or  snp_id,allele1,allele2  etc.
+            const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#'));
+            if (lines.length < 2) { showError('CSV file appears empty or has no data rows.'); return; }
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
+
+            // Find columns by common names
+            const col = (names) => { for (const n of names) { const i = headers.indexOf(n); if (i >= 0) return i; } return -1; };
+            const rsidCol     = col(['rsid','snp_id','snpid','snp','id','marker']);
+            const genoCol     = col(['genotype','alleles','result','call','allele','bases','genotype_call']);
+            const zygoCol     = col(['zygosity','type','call_type','homo_hetero']);
+            const allele1Col  = col(['allele1','allele_1','a1']);
+            const allele2Col  = col(['allele2','allele_2','a2']);
+
+            if (rsidCol < 0) { showError('CSV must have an rsid / snp_id / snp column. Headers found: ' + headers.join(', ')); return; }
+
+            for (let i = 1; i < lines.length; i++) {
+              const cells = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+              const rsid  = cells[rsidCol] || '';
+              if (!rsid || rsid === '--') continue;
+
+              let genotype = genoCol >= 0 ? cells[genoCol] || '' : '';
+              // If no combined genotype column, build from allele1 + allele2
+              if (!genotype && allele1Col >= 0 && allele2Col >= 0) {
+                genotype = (cells[allele1Col] || '') + (cells[allele2Col] || '');
+              }
+              genotype = genotype.toUpperCase().replace(/[^ACGT-]/g, '');
+
+              let zygosity = zygoCol >= 0 ? (cells[zygoCol] || '').toLowerCase() : '';
+              // Infer zygosity from genotype if not provided
+              if (!zygosity && genotype.length === 2) {
+                zygosity = genotype[0] === genotype[1] ? 'homozygous' : 'heterozygous';
+              }
+
+              if (rsid && genotype) variants.push({ rsid, genotype, zygosity });
             }
-            if (!_dnaExtract.lab) _dnaExtract.lab = 'NutriPath';
+            if (variants.length === 0) { showError('CSV parsed but no valid variant rows found. Check rsid and genotype columns.'); return; }
+
+          } else if (isVcf) {
+            // ── VCF ──────────────────────────────────────────────────────────
+            const lines = text.split(/\r?\n/);
+            for (const line of lines) {
+              if (line.startsWith('#')) continue;
+              const cols = line.split('\t');
+              if (cols.length < 5) continue;
+              // VCF: CHROM POS ID REF ALT QUAL FILTER INFO [FORMAT] [SAMPLE...]
+              const rsid = cols[2] && cols[2] !== '.' ? cols[2].trim() : null;
+              if (!rsid || !rsid.startsWith('rs')) continue;
+              const ref  = cols[3] ? cols[3].trim() : '';
+              const alt  = cols[4] ? cols[4].trim().split(',')[0] : '';  // first ALT only
+              // Try to read GT from sample column
+              let genotype = '', zygosity = '';
+              if (cols.length >= 10 && cols[8]) {
+                const fmtFields = cols[8].split(':');
+                const gtIdx     = fmtFields.indexOf('GT');
+                if (gtIdx >= 0) {
+                  const sampleFields = cols[9].split(':');
+                  const gt = sampleFields[gtIdx] || '';
+                  const alleles = gt.split(/[/|]/).map(a => a === '0' ? ref : (a === '1' ? alt : a));
+                  genotype  = alleles.join('').toUpperCase();
+                  zygosity  = alleles[0] === alleles[1] ? 'homozygous' : 'heterozygous';
+                }
+              }
+              if (!genotype) genotype = (ref + alt).toUpperCase();
+              variants.push({ rsid, genotype, zygosity });
+            }
+            if (variants.length === 0) { showError('VCF parsed but no valid rs* variant rows found.'); return; }
+          }
+
+          // Build final extract (only needed if not already set above by native JSON)
+          if (!_dnaExtract) {
+            _dnaExtract = {
+              schema:     'genethrive.dna.v1',
+              clientId:   document.getElementById('client-id').value.trim() || null,
+              name:       metaName,
+              dob:        metaDob,
+              barcode:    metaBarcode,
+              reportDate: metaDate,
+              lab:        'NutriPath',
+              variants,
+              _errors:    [],
+            };
           }
 
           const variantCount = _dnaExtract.variants ? _dnaExtract.variants.length : 0;
+          if (variantCount === 0) {
+            showError('File parsed but no variants were found. Please check the file format.');
+            _dnaExtract = null;
+            return;
+          }
+
           document.getElementById(zoneId).classList.add('ready');
-          setStatus(statusId, 'green', `${file.name} — ${variantCount} variants`);
+          setStatus(statusId, 'green', `${file.name} — ${variantCount.toLocaleString()} variants`);
           document.getElementById('json-help').style.display = 'none';
 
         } catch (parseErr) {
-          showError('Could not parse JSON file: ' + parseErr.message);
+          showError('Could not parse file: ' + parseErr.message);
           _dnaExtract = null;
         }
       };
@@ -412,7 +502,7 @@
 
     if (!clientId)    { showError('Please enter a Client ID.'); return; }
     if (!_pdfBase64)  { showError('Please upload the DNA results PDF.'); return; }
-    if (!_dnaExtract) { showError('Please upload the T2 JSON extract. This is needed for the GeneThrive engine to process variant data.'); return; }
+    if (!_dnaExtract) { showError('Please upload the variant data file (JSON, CSV, or VCF). Contact your NutriPath account manager if you cannot find the export option.'); return; }
 
     // Stamp clientId into extract at submit time (in case it changed)
     _dnaExtract.clientId = clientId;

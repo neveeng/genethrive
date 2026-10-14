@@ -24,7 +24,7 @@
  *
  * ENVIRONMENT VARIABLES:
  *   PARTNER_TOKEN_SECRET
- *   SUPABASE_URL / SUPABASE_SERVICE_KEY
+ *   SUPABASE_URL / SUPABASE_SERVICE_KEY  (NOT SUPABASE_SERVICE_ROLE_KEY)
  *   STRIPE_SECRET_KEY / STRIPE_ACCOUNT_NUTRIPATH
  *   SHOPIFY_STORE_DOMAIN / SHOPIFY_ADMIN_TOKEN  (optional — tagging only)
  *   SMTP_HOST / PORT / USER / PASS
@@ -153,11 +153,12 @@ exports.handler = async function (event) {
   if (!clientId || !pdfBase64) {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing clientId or pdfBase64' }) };
   }
+
   if (!dnaExtractJson || dnaExtractJson.schema !== 'genethrive.dna.v1') {
     return {
       statusCode: 400,
       headers: corsHeaders,
-      body: JSON.stringify({ error: 'Missing or invalid dnaExtractJson — must be a genethrive.dna.v1 object' }),
+      body: JSON.stringify({ error: 'Missing or invalid dnaExtractJson — must be a genethrive.dna.v1 object with variant data' }),
     };
   }
 
@@ -193,14 +194,14 @@ exports.handler = async function (event) {
       received_at:        now,
       sequencing_partner: 'NutriPath US Lab',
       result_data: {
-        pdf_base64:   pdfBase64,        // stored for naturopath email attachment / reference
-        dna_extract:  dnaExtractJson,   // genethrive.dna.v1 — what barbara-portal sends to engine
+        pdf_base64:   pdfBase64,       // for naturopath email attachment / reference
+        dna_extract:  dnaExtractJson,  // genethrive.dna.v1 — always present (required)
         lab_notes:    notes,
         submitted_by: 'nutripath',
         submitted_at: now,
       },
     });
-    console.log(`GeneThrive: DNA results saved to Supabase for ${clientId} (${dnaExtractJson.variants?.length || 0} variants)`);
+    console.log(`GeneThrive: DNA results saved to Supabase for ${clientId} — ${dnaExtractJson.variants?.length || 0} variants`);
   } catch (err) {
     console.error('GeneThrive: Supabase dna_results save failed —', err.message);
     return {
@@ -304,7 +305,7 @@ exports.handler = async function (event) {
                   <td style="padding:8px 0">${orderDate}</td>
                 </tr>
                 <tr style="border-bottom:1px solid #ede8df">
-                  <td style="padding:8px 0;color:#7a7a74">Variants received</td>
+                  <td style="padding:8px 0;color:#7a7a74">DNA extract</td>
                   <td style="padding:8px 0">${dnaExtractJson.variants?.length || 0} variants</td>
                 </tr>
                 <tr style="border-bottom:1px solid #ede8df">

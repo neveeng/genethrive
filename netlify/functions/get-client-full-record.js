@@ -70,8 +70,10 @@ exports.handler = async function handler(event) {
     const healthProfile = healthProfileRows[0] || null;
     const dnaResult     = dnaResultRows[0]     || null;
 
-    // Extract only the dna_extract from result_data (NOT the raw pdf_base64)
-    // dna_extract is the genethrive.dna.v1 JSON stored by nutripath-submit.js
+    // Extract only the dna_extract from result_data (NOT the raw pdf_base64 — too large)
+    // dna_extract is the genethrive.dna.v1 JSON stored by nutripath-submit.js.
+    // May be null if NutriPath submitted PDF only (no digital export available).
+    // Barbara's portal must handle null dnaResults gracefully (show manual entry prompt).
     const dnaExtract = dnaResult && dnaResult.result_data
       ? dnaResult.result_data.dna_extract || null
       : null;
