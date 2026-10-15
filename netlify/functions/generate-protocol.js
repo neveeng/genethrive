@@ -33,7 +33,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { runEngine } = require('../../engine-runner');
+const { runEngine } = require('./engine-runner');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
