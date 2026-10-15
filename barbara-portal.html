@@ -179,6 +179,7 @@ function authHeaders() {
 }
 
 async function portalLogin() {
+  debugger;
   const inp = document.getElementById("login-pin");
   const err = document.getElementById("login-error");
   const btn = document.getElementById("login-btn");
@@ -298,15 +299,20 @@ function log(msg) {
 
 async function openInEngine(clientId, name) {
   log("Opening " + name + " (" + clientId + ") in the Engine…");
-  let dna, intake;
+  let dna, intake, enginePin;
   try {
-    const fullRes = await fetch(API_BASE + "/.netlify/functions/get-client-full-record?clientId=" + encodeURIComponent(clientId), { headers: authHeaders() });
+    const [fullRes, pinRes] = await Promise.all([
+      fetch(API_BASE + "/.netlify/functions/get-client-full-record?clientId=" + encodeURIComponent(clientId), { headers: authHeaders() }),
+      fetch(API_BASE + "/.netlify/functions/get-engine-pin", { headers: authHeaders() }),
+    ]);
     if (!fullRes.ok) throw new Error("client record not available from server (status " + fullRes.status + ")");
     const full = await fullRes.json();
     if (!full.healthProfile) throw new Error("Health profile not yet submitted for this client");
     if (!full.dnaResults)   throw new Error("DNA extract not yet received for this client — NutriPath must submit their variant data file before this client can be opened in the engine");
     dna    = full.dnaResults;
     intake = full.healthProfile;
+    enginePin = pinRes.ok ? (await pinRes.json()).pin : null;
+    if (!enginePin) throw new Error("Could not retrieve engine PIN from server");
   } catch (e) {
     log("FAILED to fetch this client's records: " + e.message);
     alert("Could not load this client's records: " + e.message);
@@ -314,11 +320,11 @@ async function openInEngine(clientId, name) {
   }
 
   const record = {
-    pin: "8100",              // same PIN concept as the Engine's own login — see README
+    pin:        enginePin,    // fetched server-side from PRACTITIONER_PIN env var
     clientCode: clientId,
-    dna: dna,
-    intake: intake,
-    ts: Date.now()
+    dna:        dna,
+    intake:     intake,
+    ts:         Date.now()
   };
   try {
     window.localStorage.setItem(HANDOFF_KEY, JSON.stringify(record));
