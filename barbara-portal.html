@@ -158,16 +158,8 @@
    ===================================================================== */
 
 const API_BASE = "";                 // same-origin Netlify Functions (list-clients, get-client-full-record), when deployed/running locally
-// [29 Sep 2026] Was "GeneThrive_Engine_v3.5.147_WITH_PortalHandoff.html" — a
-// separate, older Engine copy that never received Barbara's later dose
-// corrections or the Accept/Reject persistence wiring. The Portal Handoff
-// patch (ENGINE_PATCH_PortalHandoff.md) is now merged into the one current,
-// canonical Engine file instead, so there is only ever one Engine file to
-// keep up to date, not two forks that can silently drift apart.
-const ENGINE_FILE = "GeneThrive_Engine.html"; // must sit next to this file
 // PIN authentication is server-side only (authenticate-practitioner Netlify function).
 // No PIN hash is stored in this file.
-const HANDOFF_KEY = "gt_portal_handoff";
 
 let _sessionToken = null;       // returned by authenticate-practitioner.js
 let _practitionerName = "Barbara Baldwin"; // populated from server response
@@ -179,7 +171,6 @@ function authHeaders() {
 }
 
 async function portalLogin() {
-  debugger;
   const inp = document.getElementById("login-pin");
   const err = document.getElementById("login-error");
   const btn = document.getElementById("login-btn");
@@ -298,43 +289,58 @@ function log(msg) {
 }
 
 async function openInEngine(clientId, name) {
-  log("Opening " + name + " (" + clientId + ") in the Engine…");
-  let dna, intake, enginePin;
+  log("Generating protocol for " + name + " (" + clientId + ")…");
+  let full;
   try {
-    const [fullRes, pinRes] = await Promise.all([
-      fetch(API_BASE + "/.netlify/functions/get-client-full-record?clientId=" + encodeURIComponent(clientId), { headers: authHeaders() }),
-      fetch(API_BASE + "/.netlify/functions/get-engine-pin", { headers: authHeaders() }),
-    ]);
+    const fullRes = await fetch(API_BASE + "/.netlify/functions/get-client-full-record?clientId=" + encodeURIComponent(clientId), { headers: authHeaders() });
     if (!fullRes.ok) throw new Error("client record not available from server (status " + fullRes.status + ")");
-    const full = await fullRes.json();
+    full = await fullRes.json();
     if (!full.healthProfile) throw new Error("Health profile not yet submitted for this client");
-    if (!full.dnaResults)   throw new Error("DNA extract not yet received for this client — NutriPath must submit their variant data file before this client can be opened in the engine");
-    dna    = full.dnaResults;
-    intake = full.healthProfile;
-    enginePin = pinRes.ok ? (await pinRes.json()).pin : null;
-    if (!enginePin) throw new Error("Could not retrieve engine PIN from server");
+    if (!full.dnaResults)    throw new Error("DNA extract not yet received for this client — NutriPath must submit their variant data file first");
   } catch (e) {
-    log("FAILED to fetch this client's records: " + e.message);
+    log("FAILED: " + e.message);
     alert("Could not load this client's records: " + e.message);
     return;
   }
 
-  const record = {
-    pin:        enginePin,    // fetched server-side from PRACTITIONER_PIN env var
-    clientCode: clientId,
-    dna:        dna,
-    intake:     intake,
-    ts:         Date.now()
-  };
+  // Convert dna_extract (genethrive.dna.v1 JSON object) to base64 for the engine runner.
+  // generate-protocol expects dnaBase64 as a PDF — but our extract is JSON, so we encode it.
+  // engine-runner writes it to a temp file and passes it to the Engine's DNA file input.
+  const dnaBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(full.dnaResults))));
+
+  log("Sending to engine (this may take 15–30 seconds)…");
+  let result;
   try {
-    window.localStorage.setItem(HANDOFF_KEY, JSON.stringify(record));
+    const res = await fetch(API_BASE + "/.netlify/functions/generate-protocol", {
+      method:  "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dnaBase64,
+        intakeJson: full.healthProfile,
+        contact:    full.contact || {},
+        clientCode: clientId,
+        docType:    "practitioner",
+      }),
+    });
+    result = await res.json();
   } catch (e) {
-    log("FAILED to stage handoff (localStorage unavailable): " + e.message);
-    alert("Could not hand this client off to the Engine (localStorage unavailable in this browser/mode).");
+    log("FAILED: network error calling generate-protocol — " + e.message);
+    alert("Could not reach the protocol generator. Check your connection and try again.");
     return;
   }
-  log("Staged DNA + intake for " + clientId + "; opening Engine tab…");
-  window.open(ENGINE_FILE + "?portal=1&client=" + encodeURIComponent(clientId), "_blank");
+
+  if (!result.ok) {
+    const msg = (result.errors || ["Unknown error"]).join("\n");
+    log("Engine returned errors:\n" + msg);
+    alert("The Engine could not generate a protocol:\n\n" + msg);
+    return;
+  }
+
+  log("Protocol generated for " + clientId + " — opening document.");
+  // Open the returned HTML document in a new tab
+  const blob = new Blob([result.html], { type: "text/html" });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, "_blank");
 }
 </script>
 </body>

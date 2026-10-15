@@ -21,7 +21,9 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "sqlite3": "^6.0.1",
-    "stripe": "^20.4.1"
+    "stripe": "^20.4.1",
+    "@sparticuz/chromium": "^123.0.0",
+    "playwright-core": "^1.44.0"
   },
   "devDependencies": {
     "nodemon": "^1.14.10"
